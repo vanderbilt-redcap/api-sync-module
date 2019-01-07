@@ -1,0 +1,50 @@
+{
+	"name": "API Sync",
+	"namespace": "Vanderbilt\\APISyncExternalModule",
+	"description": "Synchronizes data between multiple REDCap instances using the API.  Only a daily one-way record import is supported currently, but other features may be added in the future.",
+	"authors": [
+		{
+			"name": "Mark McEver",
+			"email": "datacore@vumc.org",
+			"institution": "Vanderbilt University Medical Center"
+		}
+	],
+	"project-settings": [
+		{
+			"key": "servers",
+			"name": "REDCap Server",
+			"type": "sub_settings",
+			"repeatable" : true,
+			"sub_settings" : [
+				{
+					"key": "redcap-url",
+					"name": "Base URL",
+					"type": "text"
+				},
+				{
+					"key": "daily-record-import-hour",
+					"name": "Daily Record Import Hour (0-23)",
+					"type": "text"
+				},
+				{
+					"key": "daily-record-import-minute",
+					"name": "Daily Record Import Minute (0-59)",
+					"type": "text"
+				},
+				{
+					"key": "projects",
+					"name": "Project",
+					"type": "sub_settings",
+					"repeatable" : true,
+					"sub_settings" : [
+						{
+							"key": "api-key",
+							"name": "API Key",
+							"type": "text"
+						}
+					]
+				}
+			]
+		}
+	]
+}
