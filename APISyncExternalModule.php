@@ -35,10 +35,17 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 					return;
 				}
 
-				// TODO - implement hour/minute check here
+				$dailyRecordImportHour = (int) $dailyRecordImportHour;
+				$dailyRecordImportMinute = (int) $dailyRecordImportMinute;
+				$currentHour = (int) date('G');
+				$currentMinute = (int) date('i');  // The cast is especially important here to get rid of a possible leading zero.
 
-				// This log mainly exists just to show that the sync process started,
-				// since the next log doesn't occur until after the API request to get the project name (which could fail).
+				if($dailyRecordImportHour !== $currentHour || $dailyRecordImportMinute != $currentMinute){
+					return;
+				}
+
+				// This log mainly exists to show that the sync process has started, since the next log
+				// doesn't occur until after the API request to get the project name (which could fail).
 				$this->log("Started sync with server: $url");
 
 				foreach($server['projects'] as $project){
