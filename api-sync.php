@@ -3,7 +3,11 @@
 	<script>
 		ExternalModules.Vanderbilt.APISyncExternalModule.details = {}
 		ExternalModules.Vanderbilt.APISyncExternalModule.showDetails = function(logId){
-			simpleDialog('<pre>' + this.details[logId] + '</pre>', 'Details', null, window.innerWidth-100)
+			var width = window.innerWidth - 100;
+			var height = window.innerHeight - 200;
+			var content = '<pre style="max-height: ' + height + 'px">' + this.details[logId] + '</pre>'
+
+			simpleDialog(content, 'Details', null, width)
 		}
 	</script>
 
