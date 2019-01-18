@@ -27,22 +27,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 			$servers = $this->getSubSettings('servers', $localProjectId);
 			foreach($servers as $server){
+				if(!$this->isTimeToRun($server)){
+					continue;
+				}
+
 				$url = $server['redcap-url'];
-				$dailyRecordImportHour = $server['daily-record-import-hour'];
-				$dailyRecordImportMinute = $server['daily-record-import-minute'];
-
-				if(empty($url) || empty($dailyRecordImportHour) || empty($dailyRecordImportMinute)){
-					return;
-				}
-
-				$dailyRecordImportHour = (int) $dailyRecordImportHour;
-				$dailyRecordImportMinute = (int) $dailyRecordImportMinute;
-				$currentHour = (int) date('G');
-				$currentMinute = (int) date('i');  // The cast is especially important here to get rid of a possible leading zero.
-
-				if($dailyRecordImportHour !== $currentHour || $dailyRecordImportMinute != $currentMinute){
-					return;
-				}
 
 				// This log mainly exists to show that the sync process has started, since the next log
 				// doesn't occur until after the API request to get the project name (which could fail).
@@ -67,6 +56,28 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$_GET['pid'] = $originalPid;
 
 		return 'The ' . $this->getModuleName() . ' External Module job completed successfully.';
+	}
+
+	private function isTimeToRun($server){
+		$syncNow = $this->getProjectSetting('sync-now');
+		if($syncNow){
+			$this->removeProjectSetting('sync-now');
+			return true;
+		}
+
+		$dailyRecordImportHour = $server['daily-record-import-hour'];
+		$dailyRecordImportMinute = $server['daily-record-import-minute'];
+
+		if(empty($dailyRecordImportHour) || empty($dailyRecordImportMinute)){
+			return false;
+		}
+
+		$dailyRecordImportHour = (int) $dailyRecordImportHour;
+		$dailyRecordImportMinute = (int) $dailyRecordImportMinute;
+		$currentHour = (int) date('G');
+		$currentMinute = (int) date('i');  // The cast is especially important here to get rid of a possible leading zero.
+
+		return $dailyRecordImportHour === $currentHour && $dailyRecordImportMinute === $currentMinute;
 	}
 
 	function importRecords($localProjectId, $url, $project){

@@ -21,12 +21,24 @@
 
 	<div style="color: #800000;font-size: 16px;font-weight: bold;"><?=$module->getModuleName()?></div>
 	<br>
+	<?php
+	$syncNow = $module->getProjectSetting('sync-now');
+	if($syncNow){
+		?>A sync is scheduled to start in less than a minute...<?php
+	}
+	else{
+		?>
+		<form action="<?=$module->getUrl('sync-now.php')?>" method="post">
+			<button>Sync Now</button>
+		</form>
+		<?php
+	}
+	?>
+	<br>
+	<br>
 	<br>
 	<h5>Recent Log Entries</h5>
 	<p>(refresh the page to see the latest)</p>
-	<br>
-	<br>
-
 	<table class="table table-striped" style="max-width: 1000px;">
 		<thead>
 			<tr>
