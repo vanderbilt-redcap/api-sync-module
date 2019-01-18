@@ -1,7 +1,7 @@
 {
 	"name": "API Sync",
 	"namespace": "Vanderbilt\\APISyncExternalModule",
-	"description": "Synchronizes data between multiple REDCap instances using the API.  Only a daily one-way record import is supported currently, but other features may be added in the future.",
+	"description": "<b>Overwrites the data in this project daily</b> from a remote REDCap server via the API.  This module could easily be expanded to support other multi-server synchronization tasks as well.  Very large projects may not work properly, but this module could also be modified to export/import in chunks to support them.",
 	"authors": [
 		{
 			"name": "Mark McEver",
