@@ -46,5 +46,28 @@
 				}
 			]
 		}
-	]
+	],
+	"links": {
+		"project": [
+			{
+				"name": "API Sync",
+				"icon": "databases_arrow",
+				"url": "api-sync.php",
+				"show-header-and-footer": true
+			}
+		]
+	},
+	"crons": [
+		{
+			"cron_name": "cron",
+			"cron_description": "API Sync External Module",
+			"method": "cron",
+			"cron_frequency": "1",
+			"cron_max_run_time": "7200"
+		}
+	],
+	"compatibility": {
+		"redcap-version-min": "8.11.0",
+		"redcap-version-min-reason": "REDCap core commit e5aa4d is required for the saveData() call to work."
+	}
 }
