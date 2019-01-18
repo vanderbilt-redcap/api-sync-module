@@ -27,10 +27,10 @@
 	<br>
 	<br>
 
-	<table class="table table-striped">
+	<table class="table table-striped" style="max-width: 1000px;">
 		<thead>
 			<tr>
-				<th>Date/Time</th>
+				<th style="min-width: 160px;">Date/Time</th>
 				<th>Message</th>
 				<th style="min-width: 125px;">Details</th>
 			</tr>
