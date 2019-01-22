@@ -74,8 +74,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		$dailyRecordImportHour = (int) $dailyRecordImportHour;
 		$dailyRecordImportMinute = (int) $dailyRecordImportMinute;
-		$currentHour = (int) date('G');
-		$currentMinute = (int) date('i');  // The cast is especially important here to get rid of a possible leading zero.
+
+		// We check the cron start time instead of the current time
+		// in case another module's cron job ran us into the next minute.
+		$cronStartTime = $_SERVER["REQUEST_TIME_FLOAT"];
+
+		$currentHour = (int) date('G', $cronStartTime);
+		$currentMinute = (int) date('i', $cronStartTime);  // The cast is especially important here to get rid of a possible leading zero.
 
 		return $dailyRecordImportHour === $currentHour && $dailyRecordImportMinute === $currentMinute;
 	}
