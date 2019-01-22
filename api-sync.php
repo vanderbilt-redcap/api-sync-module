@@ -57,7 +57,7 @@
 			$results = $module->queryLogs("
 				select log_id, timestamp, message, details
 				order by log_id desc
-				limit 5000
+				limit 2000
 			");
 
 			if($results->num_rows === 0){
