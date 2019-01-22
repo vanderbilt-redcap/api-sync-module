@@ -63,7 +63,7 @@
 			if($results->num_rows === 0){
 				?>
 				<tr>
-					<td>No logs available</td>
+					<td colspan="3">No logs available</td>
 				</tr>
 				<?php
 			}
