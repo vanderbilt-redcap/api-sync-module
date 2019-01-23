@@ -92,19 +92,19 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			'content' => 'project'
 		]), true);
 
-		$remoteProjectTitle = $response['project_title'];
+		$format = 'csv';
 
+		$remoteProjectTitle = $response['project_title'];
 		$this->log("
-			<div>Importing records (and overwriting matching local records) from the remote project titled:</div>
+			<div>Exporting records from the remote project titled:</div>
 			<div class='remote-project-title'>$remoteProjectTitle</div>
 		");
-
-		$format = 'csv';
 		$response = $this->apiRequest($url, $apiKey, [
 			'content' => 'record',
 			'format' => $format
 		]);
 
+		$this->log("Importing records (and overwriting matching local records)");
 		$results = \REDCap::saveData((int)$localProjectId, $format, $response, 'overwrite');
 
 		if(empty($results['errors'])){
