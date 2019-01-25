@@ -39,6 +39,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 				foreach($server['projects'] as $project){
 					try{
+						// The following function takes about 42 seconds to export project 48364 (10,445 records, 1,428 fields, 20MB)
+						// from redcap.vanderbilt.edu to Mark's local.
 						$this->importRecords($localProjectId, $url, $project);
 					}
 					catch(Exception $e){
