@@ -26,17 +26,7 @@
 	<div style="color: #800000;font-size: 16px;font-weight: bold;"><?=$module->getModuleName()?></div>
 	<br>
 	<?php
-	$syncNow = $module->getProjectSetting('sync-now');
-	if($syncNow){
-		?>A sync is scheduled to start in less than a minute...<?php
-	}
-	else{
-		?>
-		<form action="<?=$module->getUrl('sync-now.php')?>" method="post">
-			<button>Sync Now</button>
-		</form>
-		<?php
-	}
+	$module->renderSyncNowHtml();
 	?>
 	<br>
 	<br>

@@ -189,4 +189,63 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		return $message;
 	}
+
+	function renderSyncNowHtml(){
+		$syncNow = $this->getProjectSetting('sync-now');
+		if($syncNow){
+			?>A sync is scheduled to start in less than a minute...<?php
+			return;
+		}
+
+		$result = $this->query("
+			select cron_run_start
+			from redcap_crons c
+			join redcap_crons_history h
+				on c.cron_id = h.cron_id
+			where 
+				external_module_id = 305
+				and cron_run_end is null
+			order by ch_id desc
+		");
+
+		$row = $result->fetch_assoc();
+		if($row){
+			$start = strtotime($row['cron_run_start']);
+			$twoHoursAgo = time() - 60*60*2;
+			if($start < $twoHoursAgo){
+				?>
+				A sync has been in progress for a while.
+				You may want to reach out to your REDCap administrator to confirm that it is actually still running.
+				If it's not, your administrator can use the following query to manually mark the job as completed so another one can start:
+				<br>
+				<br>
+				<pre>
+					update
+						redcap_crons c
+						join redcap_crons_history h
+							on c.cron_id = h.cron_id
+					set
+						cron_run_end = now(),
+						cron_run_status = 'PROCESSING',
+						cron_info = 'The job died unexpectedly and was manually marked as completed via SQL query.'
+					where
+						external_module_id = 305
+						and cron_run_end is null
+				</pre>
+				<?php
+			}
+			else{
+				?>A sync is in progress...<?php
+			}
+
+			return;
+		}
+
+		?>
+		<form action="<?=$this->getUrl('sync-now.php')?>" method="post">
+			<button>Sync Now</button>
+		</form>
+		<?php
+
+	}
 }
