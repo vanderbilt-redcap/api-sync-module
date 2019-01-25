@@ -89,14 +89,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 	function importRecords($localProjectId, $url, $project){
 		$apiKey = $project['api-key'];
-
-		$response = json_decode($this->apiRequest($url, $apiKey, [
-			'content' => 'project'
-		]), true);
-
 		$format = 'csv';
 
-		$remoteProjectTitle = $response['project_title'];
+		$remoteProjectTitle = $this->getProjectTitle($url, $apiKey);
 		$this->log("
 			<div>Exporting records from the remote project titled:</div>
 			<div class='remote-project-title'>$remoteProjectTitle</div>
@@ -127,6 +122,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$this->log("Import $message", [
 			'details' => json_encode($results, JSON_PRETTY_PRINT)
 		]);
+	}
+
+	private function getProjectTitle($url, $apiKey){
+		$response = json_decode($this->apiRequest($url, $apiKey, [
+			'content' => 'project'
+		]), true);
+
+		return $response['project_title'];
 	}
 
 	private function apiRequest($url, $apiKey, $data){
