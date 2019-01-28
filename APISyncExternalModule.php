@@ -39,7 +39,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 				foreach($server['projects'] as $project){
 					try{
-						// The following function takes about 42 seconds to export project 48364 (10,445 records, 1,428 fields, 20MB)
+						// The following function takes about 15 minutes to export project 48364 (10,445 records, 1,428 fields, 20MB)
 						// from redcap.vanderbilt.edu to Mark's local.
 						$this->importRecords($localProjectId, $url, $project);
 					}
@@ -89,39 +89,90 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 	function importRecords($localProjectId, $url, $project){
 		$apiKey = $project['api-key'];
-		$format = 'csv';
 
-		$remoteProjectTitle = $this->getProjectTitle($url, $apiKey);
 		$this->log("
 			<div>Exporting records from the remote project titled:</div>
-			<div class='remote-project-title'>$remoteProjectTitle</div>
+			<div class='remote-project-title'>" . $this->getProjectTitle($url, $apiKey) . "</div>
 		");
-		$response = $this->apiRequest($url, $apiKey, [
+
+		$fieldNames = json_decode($this->apiRequest($url, $apiKey, [
+			'content' => 'exportFieldNames'
+		]), true);
+
+		$recordIdFieldName = $fieldNames[0]['export_field_name'];
+
+		$records = json_decode($this->apiRequest($url, $apiKey, [
 			'content' => 'record',
-			'format' => $format
-		]);
+			'fields' => [$recordIdFieldName]
+		]), true);
 
-		$this->log("Importing records (and overwriting matching local records)");
-		$results = \REDCap::saveData((int)$localProjectId, $format, $response, 'overwrite');
+		$recordIds = [];
+		foreach($records as $record){
+			$recordIds[] = $record[$recordIdFieldName];
+		}
 
-		if(empty($results['errors'])){
-			$message = "completed ";
+		// Use the number of fields times number of records as a metric to determine a reasonable chunk size.
+		$numberOfDataPoints = count($fieldNames) * count($recordIds);
+		$numberOfBatches = $numberOfDataPoints / 1000000;
+		$batchSize = round(count($recordIds) / $numberOfBatches);
+		$chunks = array_chunk($recordIds, $batchSize);
+		$format = 'csv';
 
-			if(empty($results['warnings'])){
-				$message .= 'successfully';
+		for($i=0; $i<count($chunks); $i++){
+			$chunk = $chunks[$i];
+
+			$batchText = "batch " . ($i+1) . " of " . count($chunks);
+
+			$this->log("Exporting $batchText");
+			$response = $this->apiRequest($url, $apiKey, [
+				'content' => 'record',
+				'format' => $format,
+				'records' => $chunk
+			]);
+
+			$this->log("Importing $batchText (and overwriting matching local records)");
+			$results = \REDCap::saveData((int)$localProjectId, $format, $response, 'overwrite');
+
+			$results = $this->adjustSaveResults($results);
+
+			$stopEarly = false;
+			if(empty($results['errors'])){
+				$message = "completed ";
+
+				if(empty($results['warnings'])){
+					$message .= 'successfully';
+				}
+				else{
+					$message .= 'with warnings';
+				}
 			}
 			else{
-				$message .= 'with warnings';
+				$message = "did NOT complete successfully";
+				$stopEarly = true;
+			}
+
+			$this->log("Import $message for $batchText", [
+				'details' => json_encode($results, JSON_PRETTY_PRINT)
+			]);
+
+			if($stopEarly){
+				break;
 			}
 		}
-		else{
-			$message = "did NOT complete successfully";
-		}
+	}
 
+	private function adjustSaveResults($results){
+		$results['warnings'] = array_filter($results['warnings'], function($warning){
+			global $lang;
 
-		$this->log("Import $message", [
-			'details' => json_encode($results, JSON_PRETTY_PRINT)
-		]);
+			if(strpos($warning[3], $lang['data_import_tool_197']) !== -1){
+				return false;
+			}
+
+			return true;
+		});
+
+		return $results;
 	}
 
 	private function getProjectTitle($url, $apiKey){
