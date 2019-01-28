@@ -207,21 +207,23 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			from redcap_crons c
 			join redcap_crons_history h
 				on c.cron_id = h.cron_id
+			join redcap_external_modules m
+				on m.external_module_id = c.external_module_id
 			where 
-				external_module_id = 305
+				directory_prefix = '" . $this->PREFIX . "'
 				and cron_run_end is null
 			order by ch_id desc
 		");
 
 		$row = $result->fetch_assoc();
 		if($row){
-			$start = strtotime($row['cron_run_start']);
-			$twoHoursAgo = time() - 60*60*2;
-			if($start < $twoHoursAgo){
-				?>
-				A sync has been in progress for a while.
-				You may want to reach out to your REDCap administrator to confirm that it is actually still running.
-				If it's not, your administrator can use the following query to manually mark the job as completed so another one can start:
+			?>
+			<p>A sync is in progress...  For information on canceling it, <a href="javascript:ExternalModules.Vanderbilt.APISyncExternalModule.showSyncCancellationDetails()" style="text-decoration: underline">click here</a>.</p>
+
+			<div id="api-sync-module-cancellation-details" style="display: none;">
+				<p>Only a REDCap system administrator can cancel a sync in progress.</p>
+
+				<p>If you are an administrator, make sure any long running cron processes have finished (or kill them manually).  Once you're sure no cron API Sync tasks are still running, use the following query to manually mark the previous API Sync job as completed so another one can be started:</p>
 				<br>
 				<br>
 				<pre>
@@ -229,28 +231,26 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 						redcap_crons c
 						join redcap_crons_history h
 							on c.cron_id = h.cron_id
+						join redcap_external_modules m
+							on m.external_module_id = c.external_module_id
 					set
 						cron_run_end = now(),
 						cron_run_status = 'PROCESSING',
 						cron_info = 'The job died unexpectedly and was manually marked as completed via SQL query.'
 					where
-						external_module_id = 305
+						directory_prefix = '<?=$this->PREFIX?>'
 						and cron_run_end is null
 				</pre>
-				<?php
-			}
-			else{
-				?>A sync is in progress...<?php
-			}
-
-			return;
+			</div>
+			<?php
 		}
+		else{
+			?>
+			<form action="<?=$this->getUrl('sync-now.php')?>" method="post">
+				<button>Sync Now</button>
+			</form>
+			<?php
 
-		?>
-		<form action="<?=$this->getUrl('sync-now.php')?>" method="post">
-			<button>Sync Now</button>
-		</form>
-		<?php
-
+		}
 	}
 }

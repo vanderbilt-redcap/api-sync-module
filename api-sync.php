@@ -2,12 +2,29 @@
 	<?=$module->initializeJavascriptModuleObject()?>
 	<script>
 		ExternalModules.Vanderbilt.APISyncExternalModule.details = {}
+
 		ExternalModules.Vanderbilt.APISyncExternalModule.showDetails = function(logId){
 			var width = window.innerWidth - 100;
 			var height = window.innerHeight - 200;
 			var content = '<pre style="max-height: ' + height + 'px">' + this.details[logId] + '</pre>'
 
 			simpleDialog(content, 'Details', null, width)
+		}
+
+		ExternalModules.Vanderbilt.APISyncExternalModule.showSyncCancellationDetails = function(){
+			var div = $('#api-sync-module-cancellation-details').clone()
+			div.show()
+
+			ExternalModules.Vanderbilt.APISyncExternalModule.trimPreIndentation(div.find('pre')[0])
+
+			simpleDialog(div, 'Sync Cancellation', null, 1000)
+		}
+
+		ExternalModules.Vanderbilt.APISyncExternalModule.trimPreIndentation = function(pre){
+			var content = pre.innerHTML
+			var firstNonWhitespaceIndex = content.search(/\S/)
+			var leadingWhitespace = content.substr(0, firstNonWhitespaceIndex)
+			pre.innerHTML = content.replace(new RegExp(leadingWhitespace, 'g'), '');
 		}
 	</script>
 
