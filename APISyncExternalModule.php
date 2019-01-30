@@ -102,7 +102,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$numberOfBatches = $numberOfDataPoints / 1000000;
 		$batchSize = round(count($recordIds) / $numberOfBatches);
 		$chunks = array_chunk($recordIds, $batchSize);
-		$format = 'csv';
+		$format = 'json';
+		$recordIdPrefix = $project['record-id-prefix'];
 
 		for($i=0; $i<count($chunks); $i++){
 			$chunk = $chunks[$i];
@@ -110,17 +111,21 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$batchText = "batch " . ($i+1) . " of " . count($chunks);
 
 			$this->log("Exporting $batchText");
-			$response = $this->apiRequest($url, $apiKey, [
+			$response = json_decode($this->apiRequest($url, $apiKey, [
 				'content' => 'record',
 				'format' => $format,
 				'records' => $chunk
-			]);
+			]), true);
+
+			foreach($response as &$record){
+				$record[$recordIdFieldName] = $recordIdPrefix . $record[$recordIdFieldName];
+			}
 
 			$this->log("Importing $batchText (and overwriting matching local records)");
 			$results = \REDCap::saveData(
 					(int)$localProjectId,
 					$format,
-					$response,
+					json_encode($response),
 					'overwrite',
 					null,
 					null,

@@ -44,6 +44,11 @@
 							"type": "text"
 						},
 						{
+							"key": "record-id-prefix",
+							"name": "<b>Record ID Prefix</b> - If data is being imported from multiple projects or entered manually it is <b>highly recommended</b> to specify a record id prefix.  It will be prepended to all imported records ids to ensure that they're unique.",
+							"type": "text"
+						},
+						{
 							"key": "leave-unlocked",
 							"name": "Skip form/instance locking after import",
 							"type": "checkbox"
