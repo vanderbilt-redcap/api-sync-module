@@ -30,8 +30,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 						$this->importRecords($localProjectId, $url, $project);
 					}
 					catch(Exception $e){
-						$this->log("An error occurred: " . $e->getMessage(), [
-							'details' => $e->getTraceAsString()
+						$this->log("An error occurred.  Click 'Show Details' for more info.", [
+							'details' => $e->getMessage() . "\n" . $e->getTraceAsString()
 						]);
 					}
 				}
@@ -117,7 +117,24 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			]);
 
 			$this->log("Importing $batchText (and overwriting matching local records)");
-			$results = \REDCap::saveData((int)$localProjectId, $format, $response, 'overwrite');
+			$results = \REDCap::saveData(
+					(int)$localProjectId,
+					$format,
+					$response,
+					'overwrite',
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					null,
+					true // $removeLockedFields - We want to allow importing of locked forms/instances.
+			);
 
 			$results = $this->adjustSaveResults($results);
 
@@ -140,6 +157,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$this->log("Import $message for $batchText", [
 				'details' => json_encode($results, JSON_PRETTY_PRINT)
 			]);
+
+			if(!$project['leave-unlocked']){
+				$this->log("Locking all forms/instances for $batchText");
+				$this->framework->records->lock($results['ids']);
+			}
 
 			if($stopEarly){
 				break;

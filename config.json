@@ -42,6 +42,11 @@
 							"key": "api-key",
 							"name": "API Key",
 							"type": "text"
+						},
+						{
+							"key": "leave-unlocked",
+							"name": "Skip form/instance locking after import",
+							"type": "checkbox"
 						}
 					]
 				}

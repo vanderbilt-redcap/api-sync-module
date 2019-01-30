@@ -38,6 +38,12 @@
 			margin-left: 15px;
 			font-weight: bold;
 		}
+
+		#api-sync-module-wrapper td.message{
+			  max-width: 800px;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
 	</style>
 
 	<div style="color: #800000;font-size: 16px;font-weight: bold;"><?=$module->getModuleName()?></div>
@@ -81,7 +87,7 @@
 					?>
 					<tr>
 						<td><?=$row['timestamp']?></td>
-						<td><?=$row['message']?></td>
+						<td class="message"><?=$row['message']?></td>
 						<td>
 							<?php if(!empty($details)) { ?>
 								<button onclick="ExternalModules.Vanderbilt.APISyncExternalModule.showDetails(<?=$logId?>)">Show Details</button>
