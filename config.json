@@ -19,7 +19,7 @@
 			"sub_settings" : [
 				{
 					"key": "redcap-url",
-					"name": "Base URL",
+					"name": "Remote REDCap URL",
 					"type": "text"
 				},
 				{
@@ -45,7 +45,7 @@
 						},
 						{
 							"key": "record-id-prefix",
-							"name": "<b>Record ID Prefix</b> - If data is being imported from multiple projects or entered manually it is <b>highly recommended</b> to specify a record id prefix.  It will be prepended to all imported records ids to ensure that they're unique.",
+							"name": "<div style='max-width: 375px; display: inline-block;'><b>Record ID Prefix</b> - If data is being imported from multiple projects or entered manually it is <b>highly recommended</b> to specify a record id prefix.  This prefix will be prepended to all imported records ids to ensure that they're unique.</div>",
 							"type": "text"
 						},
 						{
