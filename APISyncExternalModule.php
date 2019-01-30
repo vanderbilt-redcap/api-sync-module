@@ -248,28 +248,34 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 	function renderSyncNowHtml(){
 		$syncNow = $this->getProjectSetting('sync-now');
+		$currentSyncMessage = null;
 		if($syncNow){
-			?>A sync is scheduled to start in less than a minute...<?php
-			return;
+			$currentSyncMessage = "A sync is scheduled to start in less than a minute...";
+		}
+		else{
+			$result = $this->query("
+				select cron_run_start
+				from redcap_crons c
+				join redcap_crons_history h
+					on c.cron_id = h.cron_id
+				join redcap_external_modules m
+					on m.external_module_id = c.external_module_id
+				where 
+					directory_prefix = '" . $this->PREFIX . "'
+					and cron_run_end is null
+				order by ch_id desc
+			");
+
+			$row = $result->fetch_assoc();
+			if($row){
+				$currentSyncMessage = "A sync is in progress...";
+			}
 		}
 
-		$result = $this->query("
-			select cron_run_start
-			from redcap_crons c
-			join redcap_crons_history h
-				on c.cron_id = h.cron_id
-			join redcap_external_modules m
-				on m.external_module_id = c.external_module_id
-			where 
-				directory_prefix = '" . $this->PREFIX . "'
-				and cron_run_end is null
-			order by ch_id desc
-		");
 
-		$row = $result->fetch_assoc();
-		if($row){
+		if($currentSyncMessage){
 			?>
-			<p>A sync is in progress...  For information on canceling it, <a href="javascript:ExternalModules.Vanderbilt.APISyncExternalModule.showSyncCancellationDetails()" style="text-decoration: underline">click here</a>.</p>
+			<p><?=$currentSyncMessage?>  For information on canceling it, <a href="javascript:ExternalModules.Vanderbilt.APISyncExternalModule.showSyncCancellationDetails()" style="text-decoration: underline">click here</a>.</p>
 
 			<div id="api-sync-module-cancellation-details" style="display: none;">
 				<p>Only a REDCap system administrator can cancel a sync in progress.</p>
