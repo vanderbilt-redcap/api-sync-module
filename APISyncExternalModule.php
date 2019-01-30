@@ -5,23 +5,9 @@ use Exception;
 
 class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	function cron(){
-		// TODO - move this query to the framework for others to use!!!
-		$results = $this->query("
-			select project_id
-			from redcap_external_modules m
-			join redcap_external_module_settings s
-				on m.external_module_id = s.external_module_id
-			where
-				m.directory_prefix = '" . $this->PREFIX . "'
-				and s.value = 'true'
-				and s.`key` = 'enabled'
-		");
-
 		$originalPid = $_GET['pid'];
 
-		while($row = $results->fetch_assoc()){
-			$localProjectId = $row['project_id'];
-
+		foreach($this->framework->getProjectsWithModuleEnabled() as $localProjectId){
 			// This automatically associates all log statements with this project.
 			$_GET['pid'] = $localProjectId;
 

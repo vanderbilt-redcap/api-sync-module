@@ -1,6 +1,7 @@
 {
 	"name": "API Sync",
 	"namespace": "Vanderbilt\\APISyncExternalModule",
+	"framework-version": 2,
 	"description": "<b>Overwrites the data in this project daily</b> from a remote REDCap server via the API.  The Data Dictionaries for both projects are expected to be either identical or compatible.  This module could easily be expanded to support other multi-server synchronization tasks as well.  Very large projects may not work properly.  In one case an import took 15 minutes for a project with about 10,000 records and 1,500 fields.",
 	"authors": [
 		{
