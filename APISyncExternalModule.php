@@ -11,7 +11,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			// This automatically associates all log statements with this project.
 			$_GET['pid'] = $localProjectId;
 
-			$servers = $this->getSubSettings('servers', $localProjectId);
+			$servers = $this->framework->getSubSettings('servers', $localProjectId);
 			foreach($servers as $server){
 				if(!$this->isTimeToRun($server)){
 					continue;
