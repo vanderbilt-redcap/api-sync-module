@@ -305,8 +305,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 							on m.external_module_id = c.external_module_id
 					set
 						cron_run_end = now(),
-						cron_run_status = 'PROCESSING',
-						cron_info = 'The job died unexpectedly and was manually marked as completed via SQL query.'
+						cron_info = 'The job died unexpectedly.  The run end time was manually set via SQL query.'
 					where
 						directory_prefix = '<?=$this->PREFIX?>'
 						and cron_run_end is null
