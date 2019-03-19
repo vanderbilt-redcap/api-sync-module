@@ -15,7 +15,12 @@
 			var div = $('#api-sync-module-cancellation-details').clone()
 			div.show()
 
-			ExternalModules.Vanderbilt.APISyncExternalModule.trimPreIndentation(div.find('pre')[0])
+			var pre = div.find('pre');
+
+			// Replace tabs with spaces for easy copy pasting into the mysql command line interface
+			pre.html(pre.html().replace(/\t/g, '    '))
+
+			ExternalModules.Vanderbilt.APISyncExternalModule.trimPreIndentation(pre[0])
 
 			simpleDialog(div, 'Sync Cancellation', null, 1000)
 		}
