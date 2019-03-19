@@ -98,11 +98,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 
 		// Use the number of fields times number of records as a metric to determine a reasonable chunk size.
+		// The following calculation caused about 700mb of maximum memory usage when importing the TIN Database (pid 61715).
 		$numberOfDataPoints = count($fieldNames) * count($recordIds);
-		$numberOfBatches = $numberOfDataPoints / 1000000;
+		$numberOfBatches = $numberOfDataPoints / 500000;
 		$batchSize = round(count($recordIds) / $numberOfBatches);
 		$chunks = array_chunk($recordIds, $batchSize);
-		$format = 'json';
 		$recordIdPrefix = $project['record-id-prefix'];
 
 		for($i=0; $i<count($chunks); $i++){
@@ -113,19 +113,38 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$this->log("Exporting $batchText");
 			$response = json_decode($this->apiRequest($url, $apiKey, [
 				'content' => 'record',
-				'format' => $format,
+				'format' => 'json',
 				'records' => $chunk
 			]), true);
 
-			foreach($response as &$record){
-				$record[$recordIdFieldName] = $recordIdPrefix . $record[$recordIdFieldName];
+			foreach($response as &$instance){
+				$instance[$recordIdFieldName] = $recordIdPrefix . $instance[$recordIdFieldName];
 			}
+
+			$stopEarly = $this->importBatch($localProjectId, $project, $batchText, $batchSize, $response);
+
+			if($stopEarly){
+				break;
+			}
+		}
+	}
+
+	private function importBatch($localProjectId, $project, $batchTextPrefix, $batchSize, $response){
+		// Split the import up into chunks as well to handle projects with many instances per record ID.
+		$chunks = array_chunk($response, $batchSize);
+		$batchCount = count($chunks);
+
+		for($i=0; $i<$batchCount; $i++){
+			$chunk = $chunks[$i];
+
+			$batchNumber = $i+1;
+			$batchText = $batchTextPrefix . ", sub-batch $batchNumber of $batchCount";
 
 			$this->log("Importing $batchText (and overwriting matching local records)");
 			$results = \REDCap::saveData(
 					(int)$localProjectId,
-					$format,
-					json_encode($response),
+					'json',
+					json_encode($chunk),
 					'overwrite',
 					null,
 					null,
@@ -172,6 +191,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				break;
 			}
 		}
+
+		return $stopEarly;
 	}
 
 	private function adjustSaveResults($results){
