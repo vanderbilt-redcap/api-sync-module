@@ -84,6 +84,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			return;
 		}
 
+		if($this->getProjectSetting('disable-error-emails') === true){
+			return;
+		}
+
 		$url = $this->getUrl('api-sync.php');
 		$message .= "  See the logs on <a href='$url'>this page</a> for details.";
 

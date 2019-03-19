@@ -12,6 +12,11 @@
 	],
 	"project-settings": [
 		{
+			"key": "disable-error-emails",
+			"name": "Disable error notification emails to design rights users",
+			"type": "checkbox"
+		},
+		{
 			"key": "servers",
 			"name": "REDCap Server",
 			"type": "sub_settings",
