@@ -2,6 +2,7 @@
 namespace Vanderbilt\APISyncExternalModule;
 
 use Exception;
+use REDCap;
 
 class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	function cron(){
@@ -18,10 +19,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				}
 
 				$url = $server['redcap-url'];
+				$serverStartMessage = "Started sync with server: $url";
+				$serverFinishMessage = "Finished sync with server: $url";
+
+				$this->makeSureLastSyncFinished($url, $serverStartMessage, $serverFinishMessage);
 
 				// This log mainly exists to show that the sync process has started, since the next log
 				// doesn't occur until after the API request to get the project name (which could fail).
-				$this->log("Started sync with server: $url");
+				$this->log($serverStartMessage);
 
 				foreach($server['projects'] as $project){
 					try{
@@ -33,10 +38,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 						$this->log("An error occurred.  Click 'Show Details' for more info.", [
 							'details' => $e->getMessage() . "\n" . $e->getTraceAsString()
 						]);
+
+						$this->sendErrorEmail("An exception occurred while syncing.");
 					}
 				}
 
-				$this->log("Finished sync with server: $url");
+				$this->log($serverFinishMessage);
 			}
 		}
 
@@ -44,6 +51,59 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$_GET['pid'] = $originalPid;
 
 		return 'The ' . $this->getModuleName() . ' External Module job completed successfully.';
+	}
+
+	private function makeSureLastSyncFinished($url, $serverStartMessage, $serverFinishMessage){
+		$getLastMessageLogId = function($message){
+			$message = db_real_escape_string($message);
+			$results = $this->queryLogs("select log_id where message = '$message' order by log_id desc limit 1");
+			$row = $results->fetch_assoc();
+			if(!$row){
+				return null;
+			}
+
+			return $row['log_id'];
+		};
+
+		$lastStart = $getLastMessageLogId($serverStartMessage);
+		$lastFinish = $getLastMessageLogId($serverFinishMessage);
+
+		if($lastStart === null){
+			// A sync has never been run on this project.
+			return;
+		}
+
+		if($lastFinish === null || $lastStart > $lastFinish){
+			$this->sendErrorEmail("The last daily sync did not complete.");
+		}
+	}
+
+	private function sendErrorEmail($message){
+		if(!method_exists($this->framework, 'getProject')){
+			// This REDCap version is older and doesn't have the methods needed for error reporting.
+			return;
+		}
+
+		$url = $this->getUrl('api-sync.php');
+		$message .= "  See the logs on <a href='$url'>this page</a> for details.";
+
+		$project = $this->framework->getProject();
+		$users = $project->getUsers();
+
+		$emails = [];
+		foreach($users as $user){
+			if($user->hasDesignRights()){
+				$emails = $user->getEmail();
+			}
+		}
+
+		global $homepage_contact_email;
+		REDCap::email(
+			$emails,
+			$homepage_contact_email,
+			"REDCap API Sync Module Error",
+			"$message"
+		);
 	}
 
 	private function isTimeToRun($server){
@@ -124,7 +184,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$stopEarly = $this->importBatch($localProjectId, $project, $batchText, $batchSize, $response);
 
 			if($stopEarly){
-				break;
+				return;
 			}
 		}
 	}
@@ -188,11 +248,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			}
 
 			if($stopEarly){
-				break;
+				$this->sendErrorEmail("REDCap was unable to import some record data.");
+				return true;
 			}
 		}
 
-		return $stopEarly;
+		return false;
 	}
 
 	private function adjustSaveResults($results){
