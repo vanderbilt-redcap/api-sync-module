@@ -98,9 +98,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 
 		// Use the number of fields times number of records as a metric to determine a reasonable chunk size.
-		// The following calculation caused about 700mb of maximum memory usage when importing the TIN Database (pid 61715).
+		// The following calculation caused about 500MB of maximum memory usage when importing the TIN Database (pid 61715) on the Vanderbilt REDCap test server.
 		$numberOfDataPoints = count($fieldNames) * count($recordIds);
-		$numberOfBatches = $numberOfDataPoints / 500000;
+		$numberOfBatches = $numberOfDataPoints / 100000;
 		$batchSize = round(count($recordIds) / $numberOfBatches);
 		$chunks = array_chunk($recordIds, $batchSize);
 		$recordIdPrefix = $project['record-id-prefix'];
