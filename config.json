@@ -13,7 +13,7 @@
 	"project-settings": [
 		{
 			"key": "disable-error-emails",
-			"name": "Disable error notification emails to design rights users",
+			"name": "Disable error notification emails to superusers on the project (or the general system admin email if there are none).",
 			"type": "checkbox"
 		},
 		{

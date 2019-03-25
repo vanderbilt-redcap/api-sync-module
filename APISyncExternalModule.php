@@ -96,17 +96,22 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		$emails = [];
 		foreach($users as $user){
-			if($user->hasDesignRights()){
+			if($user->isSuperUser()){
 				$emails[] = $user->getEmail();
 			}
 		}
 
 		global $homepage_contact_email;
+		if(empty($emails)){
+			// There aren't any super users on the project.  Send to the system admin instead.
+			$emails[] = $homepage_contact_email;
+		}
+
 		REDCap::email(
 			implode(';', $emails),
 			$homepage_contact_email,
 			"REDCap API Sync Module Error",
-			"$message"
+			$message
 		);
 	}
 
