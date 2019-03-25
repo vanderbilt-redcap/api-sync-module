@@ -97,13 +97,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$emails = [];
 		foreach($users as $user){
 			if($user->hasDesignRights()){
-				$emails = $user->getEmail();
+				$emails[] = $user->getEmail();
 			}
 		}
 
 		global $homepage_contact_email;
 		REDCap::email(
-			$emails,
+			implode(';', $emails),
 			$homepage_contact_email,
 			"REDCap API Sync Module Error",
 			"$message"
