@@ -108,7 +108,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 
 		REDCap::email(
-			implode(';', $emails),
+			implode(', ', $emails),
 			$homepage_contact_email,
 			"REDCap API Sync Module Error",
 			$message
