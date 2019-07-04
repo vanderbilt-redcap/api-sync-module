@@ -83,7 +83,7 @@
 		}
 	],
 	"compatibility": {
-		"redcap-version-min": "8.11.0",
-		"redcap-version-min-reason": "REDCap core commit e5aa4d is required for the saveData() call to work."
+		"redcap-version-min": "9.0.0",
+		"redcap-version-min-reason": "EM Framework commit b184817 is required"
 	}
 }
