@@ -134,7 +134,7 @@
 			"cron_description": "API Sync External Module",
 			"method": "cron",
 			"cron_frequency": "1",
-			"cron_max_run_time": "7200"
+			"cron_max_run_time": "86400"
 		}
 	],
 	"compatibility": {
