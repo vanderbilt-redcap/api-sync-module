@@ -16,7 +16,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			// This automatically associates all log statements with this project.
 			$_GET['pid'] = $localProjectId;
 
-			$this->handlePushes($localProjectId);
+			$this->handleExports($localProjectId);
 			$this->handleImports($localProjectId);
 		}
 
@@ -31,59 +31,59 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return count($array) != count($filteredArray);
 	}
 
-	private function handlePushes($localProjectId){
-		$servers = $this->framework->getSubSettings('push-servers', $localProjectId);
+	private function handleExports($localProjectId){
+		$servers = $this->framework->getSubSettings('export-servers', $localProjectId);
 
 		$firstServer = $servers[0];
-		$firstProject = @$firstServer['push-projects'][0];
+		$firstProject = @$firstServer['export-projects'][0];
 		if($this->areAnyEmpty([
-			@$firstServer['push-redcap-url'],
-			@$firstProject['push-api-key'],
-			@$firstProject['push-project-name']
+			@$firstServer['export-redcap-url'],
+			@$firstProject['export-api-key'],
+			@$firstProject['export-project-name']
 		])){
 			return;
 		}
 
-		// Mark records as in progress before retrieving their IDs so we can distinguish
-		// between records queued before and after the export for the push.
-		// Records queued afterward should remain in the db to trigger the next push.
+		// Mark records as "in progress" before retrieving their IDs so we can distinguish
+		// between records queued before and after we call getData().
+		// Records queued afterward should remain queued to trigger the next export.
 		$numberOfRecordsInProgress = $this->markQueuedRecordsAsInProgress();
 		if($numberOfRecordsInProgress === 0){
 			// No queued records existed, no need to continue.
 			return;
 		}
 
-		$chunks = array_chunk($this->getInProgressRecordsIds(), $this->getPushBatchSize());
+		$chunks = array_chunk($this->getInProgressRecordsIds(), $this->getExportBatchSize());
 		for($i=0; $i<count($chunks); $i++) {
 			$recordIds = $chunks[$i];
 			$batchText = "batch " . ($i+1) . " of " . count($chunks);
 
-			$this->log("Preparing to push $batchText", [
+			$this->log("Preparing to export $batchText", [
 				'details' => json_encode(['Record IDs' => $recordIds], JSON_PRETTY_PRINT)
 			]);
 
 			$data = REDCap::getData($localProjectId, 'json', $recordIds);
 
 			foreach ($servers as $server) {
-				$url = $server['push-redcap-url'];
+				$url = $server['export-redcap-url'];
 				$logUrl = $this->formatURLForLogs($url);
-				$this->log("Started push to $logUrl");
+				$this->log("Started export to $logUrl");
 
-				foreach ($server['push-projects'] as $project) {
+				foreach ($server['export-projects'] as $project) {
 					$this->log("
-						<div>Pushing to project:</div>
-						<div class='remote-project-title'>" . $project['push-project-name'] . "</div>
+						<div>Exporting to project:</div>
+						<div class='remote-project-title'>" . $project['export-project-name'] . "</div>
 					");
 
 					try {
-						$apiKey = $project['push-api-key'];
+						$apiKey = $project['export-api-key'];
 						$results = json_decode($this->apiRequest($url, $apiKey, [
 							'content' => 'record',
 							'overwriteBehavior' => 'overwrite',
 							'data' => $data
 						]), true);
 
-						$this->log("Project push completed successfully", [
+						$this->log("Project export completed successfully", [
 							'details' => json_encode($results, JSON_PRETTY_PRINT)
 						]);
 					} catch (Exception $e) {
@@ -91,16 +91,16 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 					}
 				}
 
-				$this->log("Finished push to $logUrl");
+				$this->log("Finished export to $logUrl");
 			}
 
 			$this->removeStatusForInProgressRecords($recordIds);
-			$this->log("Finished pushing $batchText");
+			$this->log("Finished exporting $batchText");
 		}
 	}
 
-	private function getPushBatchSize(){
-		$size = $this->getProjectSetting('push-batch-size');
+	private function getExportBatchSize(){
+		$size = $this->getProjectSetting('export-batch-size');
 		if(!$size){
 			$size = 100;
 		}
