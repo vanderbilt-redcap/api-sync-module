@@ -27,7 +27,7 @@
 		},
 		{
 			"key": "push-descriptive",
-			"name": "<h5 style='margin-top: 10px'>Real-Time Push</h5> The real-time push feature overwrites remote data with local data within about a minute of a record being saved (or deleted).",
+			"name": "<h5 style='margin-top: 10px'>Real-Time Push</h5> The real-time push feature overwrites remote data with local data.  The push occurs automatically about a minute after records are saved or deleted.  All records can be pushed at once via the <b>API Sync</b> page.",
 			"type": "descriptive"
 		},
 		{
@@ -68,12 +68,12 @@
 		},
 		{
 			"key": "import-descriptive",
-			"name": "<h5 style='margin-top: 10px'>Daily Import</h5> This feature overwrites local data with remote data daily.  This may take a long time on large projects.  In one test case an import took 15 minutes for a project with about 10,000 records and 1,500 fields.",
+			"name": "<h5 style='margin-top: 10px'>Import</h5> The import feature overwrites local data with remote data.  Imports can be configured to occur automatically once a day, or manually via the <b>API Sync</b> page.  Imports may take a long time on large projects.  In one test case an import took 15 minutes for a project with about 10,000 records and 1,500 fields.",
 			"type": "descriptive"
 		},
 		{
 			"key": "servers",
-			"name": "Daily Import Sources",
+			"name": "Import Sources",
 			"type": "sub_settings",
 			"repeatable" : true,
 			"sub_settings" : [
