@@ -49,6 +49,11 @@
 			overflow: hidden;
 			text-overflow: ellipsis;
 		}
+
+		#api-sync-module-wrapper a{
+			/* This currently only exists for the output of the formatURLForLogs() method. */
+			text-decoration: underline;
+		}
 	</style>
 
 	<div style="color: #800000;font-size: 16px;font-weight: bold;"><?=$module->getModuleName()?></div>

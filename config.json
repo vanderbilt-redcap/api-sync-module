@@ -10,15 +10,60 @@
 			"institution": "Vanderbilt University Medical Center"
 		}
 	],
+	"permissions": [
+		"redcap_save_record",
+		"redcap_every_page_before_render"
+	],
 	"project-settings": [
 		{
 			"key": "disable-error-emails",
-			"name": "Disable error notification emails to superusers on the project (or the general system admin email if there are none).",
+			"name": "<div style='max-width: 350px; display: inline-block;'>Disable error notification emails to superusers on the project (or the general system admin email if there are none on the project).</div>",
 			"type": "checkbox"
 		},
 		{
+			"key": "push-batch-size",
+			"name": "Real-time push batch size (optional)",
+			"type": "text"
+		},
+		{
+			"key": "push-descriptive",
+			"name": "<b>Real-Time Push:</b> The real-time push feature overwrites remote data with local data within a minute or two of a record being saved (or deleted).  A one-time push of all records can be performed via the <b>API Sync</b> page/link in the left menu.",
+			"type": "descriptive"
+		},
+		{
+			"key": "push-servers",
+			"name": "Real-Time Push Destinations",
+			"type": "sub_settings",
+			"repeatable" : true,
+			"sub_settings" : [
+				{
+					"key": "push-redcap-url",
+					"name": "Remote REDCap URL",
+					"type": "text"
+				},
+				{
+					"key": "push-projects",
+					"name": "Project",
+					"type": "sub_settings",
+					"repeatable" : true,
+					"sub_settings" : [
+						{
+							"key": "push-project-name",
+							"name": "Project Name (required for logging)",
+							"type": "text"
+						},
+						{
+							"key": "push-api-key",
+							"name": "API Key",
+							"type": "text"
+						}
+					]
+				}
+			]
+		},
+		{
 			"key": "servers",
-			"name": "REDCap Server",
+			"name": "Daily Import Sources",
 			"type": "sub_settings",
 			"repeatable" : true,
 			"sub_settings" : [
@@ -50,7 +95,7 @@
 						},
 						{
 							"key": "record-id-prefix",
-							"name": "<div style='max-width: 375px; display: inline-block;'><b>Record ID Prefix</b> - If data is being imported from multiple projects or entered manually it is <b>highly recommended</b> to specify a record id prefix.  This prefix will be prepended to all imported records ids to ensure that they're unique.</div>",
+							"name": "<div style='max-width: 350px; display: inline-block;'><b>Record ID Prefix</b> - If data is being imported from multiple projects or entered manually it is <b>highly recommended</b> to specify a record id prefix.  This prefix will be prepended to all imported records ids to ensure that they're unique.</div>",
 							"type": "text"
 						},
 						{

@@ -5,6 +5,10 @@ use Exception;
 use REDCap;
 
 class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
+	const RECORD_STATUS_KEY_PREFIX = 'record-status-';
+	const QUEUED = 'queued';
+	const IN_PROGRESS = 'in progress';
+
 	function cron(){
 		$originalPid = $_GET['pid'];
 
@@ -12,45 +16,203 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			// This automatically associates all log statements with this project.
 			$_GET['pid'] = $localProjectId;
 
-			$servers = $this->framework->getSubSettings('servers', $localProjectId);
-			foreach($servers as $server){
-				if(!$this->isTimeToRun($server)){
-					continue;
-				}
-
-				$url = $server['redcap-url'];
-				$serverStartMessage = "Started sync with server: $url";
-				$serverFinishMessage = "Finished sync with server: $url";
-
-				$this->makeSureLastSyncFinished($url, $serverStartMessage, $serverFinishMessage);
-
-				// This log mainly exists to show that the sync process has started, since the next log
-				// doesn't occur until after the API request to get the project name (which could fail).
-				$this->log($serverStartMessage);
-
-				foreach($server['projects'] as $project){
-					try{
-						// The following function takes about 15 minutes to export project 48364 (10,445 records, 1,428 fields, 20MB)
-						// from redcap.vanderbilt.edu to Mark's local.
-						$this->importRecords($localProjectId, $url, $project);
-					}
-					catch(Exception $e){
-						$this->log("An error occurred.  Click 'Show Details' for more info.", [
-							'details' => $e->getMessage() . "\n" . $e->getTraceAsString()
-						]);
-
-						$this->sendErrorEmail("An exception occurred while syncing.");
-					}
-				}
-
-				$this->log($serverFinishMessage);
-			}
+			$this->handlePushes($localProjectId);
+			$this->handleImports($localProjectId);
 		}
 
 		// Put the pid back the way it was before this cron job (likely doesn't matter, but wanted to be safe)
 		$_GET['pid'] = $originalPid;
 
 		return 'The ' . $this->getModuleName() . ' External Module job completed successfully.';
+	}
+
+	private function areAnyEmpty($array){
+		$filteredArray = array_filter($array);
+		return count($array) != count($filteredArray);
+	}
+
+	private function handlePushes($localProjectId){
+		$servers = $this->framework->getSubSettings('push-servers', $localProjectId);
+
+		$firstServer = $servers[0];
+		$firstProject = @$firstServer['push-projects'][0];
+		if($this->areAnyEmpty([
+			@$firstServer['push-redcap-url'],
+			@$firstProject['push-api-key'],
+			@$firstProject['push-project-name']
+		])){
+			return;
+		}
+
+		// Mark records as in progress before retrieving their IDs so we can distinguish
+		// between records queued before and after the export for the push.
+		// Records queued afterward should remain in the db to trigger the next push.
+		$numberOfRecordsInProgress = $this->markQueuedRecordsAsInProgress();
+		if($numberOfRecordsInProgress === 0){
+			// No queued records existed, no need to continue.
+			return;
+		}
+
+		$chunks = array_chunk($this->getInProgressRecordsIds(), $this->getPushBatchSize());
+		for($i=0; $i<count($chunks); $i++) {
+			$recordIds = $chunks[$i];
+			$batchText = "batch " . ($i+1) . " of " . count($chunks);
+
+			$this->log("Preparing to push $batchText", [
+				'details' => json_encode(['Record IDs' => $recordIds], JSON_PRETTY_PRINT)
+			]);
+
+			$data = REDCap::getData($localProjectId, 'json', $recordIds);
+
+			foreach ($servers as $server) {
+				$url = $server['push-redcap-url'];
+				$logUrl = $this->formatURLForLogs($url);
+				$this->log("Started push to $logUrl");
+
+				foreach ($server['push-projects'] as $project) {
+					$this->log("
+						<div>Pushing to project:</div>
+						<div class='remote-project-title'>" . $project['push-project-name'] . "</div>
+					");
+
+					try {
+						$apiKey = $project['push-api-key'];
+						$results = json_decode($this->apiRequest($url, $apiKey, [
+							'content' => 'record',
+							'overwriteBehavior' => 'overwrite',
+							'data' => $data
+						]), true);
+
+						$this->log("Project push completed successfully", [
+							'details' => json_encode($results, JSON_PRETTY_PRINT)
+						]);
+					} catch (Exception $e) {
+						$this->handleException($e);
+					}
+				}
+
+				$this->log("Finished push to $logUrl");
+			}
+
+			$this->removeStatusForInProgressRecords($recordIds);
+			$this->log("Finished pushing $batchText");
+		}
+	}
+
+	private function getPushBatchSize(){
+		$size = $this->getProjectSetting('push-batch-size');
+		if(!$size){
+			$size = 100;
+		}
+
+		return $size;
+	}
+
+	private function markQueuedRecordsAsInProgress(){
+		$this->recordStatusQuery(
+			"update",
+			"set s.value = '" . self::IN_PROGRESS . "'",
+			"s.value = '" . self::QUEUED . "'"
+		);
+
+		return db_affected_rows();
+	}
+
+	private function getInProgressRecordsIds(){
+		$result = $this->recordStatusQuery(
+			"select `key` from",
+			"",
+			"s.value = '" . self::IN_PROGRESS . "'"
+		);
+
+		$recordIds = [];
+		while($row = $result->fetch_assoc()) {
+			$key = $row['key'];
+			$recordIds[] = substr($key, strlen(self::RECORD_STATUS_KEY_PREFIX));
+		}
+
+		return $recordIds;
+	}
+
+	private function removeStatusForInProgressRecords($recordIds){
+		$keys = [];
+		foreach($recordIds as $recordId){
+			$keys[] = self::RECORD_STATUS_KEY_PREFIX . $recordId;
+		}
+
+		$this->recordStatusQuery(
+			"delete s from",
+			"",
+			$this->framework->getSQLInClause('`key`', $keys) . " and s.value = '" . self::IN_PROGRESS . "'"
+		);
+	}
+
+	private function recordStatusQuery($actionClause, $setClause, $whereClause){
+		$projectId = $this->getProjectId();
+
+		$sql = "
+			$actionClause
+			redcap_external_module_settings s
+			join redcap_external_modules m
+				on m.external_module_id = s.external_module_id
+			$setClause
+			where
+				m.directory_prefix = '" . db_real_escape_string($this->PREFIX) . "'
+				and project_id = $projectId
+				and `key` like '" . self::RECORD_STATUS_KEY_PREFIX . "%'
+				and $whereClause
+		";
+
+		return $this->query($sql);
+	}
+
+	private function handleImports($localProjectId){
+		$servers = $this->framework->getSubSettings('servers', $localProjectId);
+		foreach($servers as $server){
+			if(!$this->isTimeToRun($server)){
+				continue;
+			}
+
+			$url = $server['redcap-url'];
+			$logUrl = $this->formatURLForLogs($url);
+			$serverStartMessage = "Started import from $logUrl";
+			$serverFinishMessage = "Finished import from $logUrl";
+
+			$this->makeSureLastSyncFinished($url, $serverStartMessage, $serverFinishMessage);
+
+			// This log mainly exists to show that the sync process has started, since the next log
+			// doesn't occur until after the API request to get the project name (which could fail).
+			$this->log($serverStartMessage);
+
+			foreach($server['projects'] as $project){
+				try{
+					// The following function takes about 15 minutes to export project 48364 (10,445 records, 1,428 fields, 20MB)
+					// from redcap.vanderbilt.edu to Mark's local.
+					$this->importRecords($localProjectId, $url, $project);
+				}
+				catch(Exception $e){
+					$this->handleException($e);
+				}
+			}
+
+			$this->log($serverFinishMessage);
+		}
+	}
+
+	private function formatURLForLogs($url){
+		$parts = explode('://', $url);
+		$domainName = $parts[1];
+
+		return "<b><a href='$url' target='_blank'>$domainName</a></b>";
+	}
+
+	private function handleException($e){
+		$message = "An error occurred.";
+		$this->log("$message  Click 'Show Details' for more info.", [
+			'details' => $e->getMessage() . "\n" . $e->getTraceAsString()
+		]);
+
+		$this->sendErrorEmail($message);
 	}
 
 	private function makeSureLastSyncFinished($url, $serverStartMessage, $serverFinishMessage){
@@ -354,7 +516,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$syncNow = $this->getProjectSetting('sync-now');
 		$currentSyncMessage = null;
 		if($syncNow){
-			$currentSyncMessage = "A sync is scheduled to start in less than a minute...";
+			$currentSyncMessage = "An import is scheduled to start in less than a minute...";
 		}
 		else{
 			$result = $this->query("
@@ -375,7 +537,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$currentSyncMessage = "A sync is in progress...";
 			}
 		}
-
 
 		if($currentSyncMessage){
 			?>
@@ -406,11 +567,19 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 		else{
 			?>
-			<form action="<?=$this->getUrl('sync-now.php')?>" method="post">
+				<form action="<?=$this->getUrl('sync-now.php')?>" method="post">
 				<button>Sync Now</button>
-			</form>
+				</form>
 			<?php
 
 		}
+	}
+
+	function redcap_save_record($project_id, $record, $instrument, $event_id, $group_id, $survey_hash, $response_id){
+		$this->queue($record);
+	}
+
+	private function queue($record){
+		$this->setProjectSetting(self::RECORD_STATUS_KEY_PREFIX . $record, self::QUEUED);
 	}
 }
