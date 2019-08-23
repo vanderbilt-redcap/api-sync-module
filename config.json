@@ -2,7 +2,7 @@
 	"name": "API Sync",
 	"namespace": "Vanderbilt\\APISyncExternalModule",
 	"framework-version": 2,
-	"description": "<b>Overwrites the data in this project daily</b> from a remote REDCap server via the API.  The Data Dictionaries for both projects are expected to be either identical or compatible.  This module could easily be expanded to support other multi-server synchronization tasks as well.  Very large projects may not work properly.  In one case an import took 15 minutes for a project with about 10,000 records and 1,500 fields.",
+	"description": "Automates exporting/importing to/from remote REDCap servers via the API.  The Data Dictionaries for the local and remote projects are expected to be either identical or compatible.  This module could easily be expanded to support additional scenarios.",
 	"authors": [
 		{
 			"name": "Mark McEver",
@@ -16,19 +16,24 @@
 	],
 	"project-settings": [
 		{
+			"key": "top-descriptive",
+			"name": "See the <b>API Sync</b> page/link in the left menu for logs and one time sync options.",
+			"type": "descriptive"
+		},
+		{
 			"key": "disable-error-emails",
-			"name": "<div style='max-width: 350px; display: inline-block;'>Disable error notification emails to superusers on the project (or the general system admin email if there are none on the project).</div>",
+			"name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'>Disable error notification emails to superusers on the project (or the general system admin email if there are none on the project).</div>",
 			"type": "checkbox"
+		},
+		{
+			"key": "push-descriptive",
+			"name": "<h5 style='margin-top: 10px'>Real-Time Push</h5> The real-time push feature overwrites remote data with local data within about a minute of a record being saved (or deleted).",
+			"type": "descriptive"
 		},
 		{
 			"key": "push-batch-size",
 			"name": "Real-time push batch size (optional)",
 			"type": "text"
-		},
-		{
-			"key": "push-descriptive",
-			"name": "<b>Real-Time Push:</b> The real-time push feature overwrites remote data with local data within a minute or two of a record being saved (or deleted).  A one-time push of all records can be performed via the <b>API Sync</b> page/link in the left menu.",
-			"type": "descriptive"
 		},
 		{
 			"key": "push-servers",
@@ -49,7 +54,7 @@
 					"sub_settings" : [
 						{
 							"key": "push-project-name",
-							"name": "Project Name (required for logging)",
+							"name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'><b>Project Name</b> - This is required, but is only used for local logging and does not have to exactly match the remote project.</div>",
 							"type": "text"
 						},
 						{
@@ -60,6 +65,11 @@
 					]
 				}
 			]
+		},
+		{
+			"key": "import-descriptive",
+			"name": "<h5 style='margin-top: 10px'>Daily Import</h5> This feature overwrites local data with remote data daily.  This may take a long time on large projects.  In one test case an import took 15 minutes for a project with about 10,000 records and 1,500 fields.",
+			"type": "descriptive"
 		},
 		{
 			"key": "servers",
@@ -95,7 +105,7 @@
 						},
 						{
 							"key": "record-id-prefix",
-							"name": "<div style='max-width: 350px; display: inline-block;'><b>Record ID Prefix</b> - If data is being imported from multiple projects or entered manually it is <b>highly recommended</b> to specify a record id prefix.  This prefix will be prepended to all imported records ids to ensure that they're unique.</div>",
+							"name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'><b>Record ID Prefix</b> - If data is being imported from multiple projects or entered manually it is <b>highly recommended</b> to specify a record id prefix.  This prefix will be prepended to all imported records ids to ensure that they're unique.</div>",
 							"type": "text"
 						},
 						{
