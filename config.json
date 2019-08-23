@@ -22,17 +22,17 @@
 		},
 		{
 			"key": "export-descriptive",
-			"name": "<h5 style='margin-top: 10px'>Real-Time Export</h5> The real-time export feature overwrites remote data with local data.  The export occurs automatically about a minute after records are saved or deleted.  All records can be exported at once via the <b>API Sync</b> page/link in the left menu.",
+			"name": "<h5 style='margin-top: 10px'>Exports</h5> Exports overwrite remote data with local data.  Records are automatically exported individually about a minute after a record is saved or deleted.  All records can be exported at once via the <b>API Sync</b> page/link in the left menu.",
 			"type": "descriptive"
 		},
 		{
 			"key": "export-batch-size",
-			"name": "Real-time export batch size (optional)",
+			"name": "Export batch size (optional)",
 			"type": "text"
 		},
 		{
 			"key": "export-servers",
-			"name": "Real-Time Export Destinations",
+			"name": "Export Destinations",
 			"type": "sub_settings",
 			"repeatable" : true,
 			"sub_settings" : [
@@ -43,7 +43,7 @@
 				},
 				{
 					"key": "export-projects",
-					"name": "Project",
+					"name": "Projects",
 					"type": "sub_settings",
 					"repeatable" : true,
 					"sub_settings" : [
@@ -63,7 +63,7 @@
 		},
 		{
 			"key": "import-descriptive",
-			"name": "<h5 style='margin-top: 10px'>Import</h5> The import feature overwrites local data with remote data.  Imports can be configured to occur automatically once a day, or manually via the <b>API Sync</b> page/link in the left menu.  Imports may take a long time on large projects.  In one test case an import took 15 minutes for a project with about 10,000 records and 1,500 fields.",
+			"name": "<h5 style='margin-top: 10px'>Imports</h5> Imports overwrite local data with remote data.  Imports can be configured to occur automatically once a day, or manually via the <b>API Sync</b> page/link in the left menu.  Imports may take a long time on large projects.  In one test case an import took 15 minutes for a project with about 10,000 records and 1,500 fields.",
 			"type": "descriptive"
 		},
 		{
@@ -89,7 +89,7 @@
 				},
 				{
 					"key": "projects",
-					"name": "Project",
+					"name": "Projects",
 					"type": "sub_settings",
 					"repeatable" : true,
 					"sub_settings" : [

@@ -67,13 +67,16 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			foreach ($servers as $server) {
 				$url = $server['export-redcap-url'];
 				$logUrl = $this->formatURLForLogs($url);
-				$this->log("Started export to $logUrl");
 
 				foreach ($server['export-projects'] as $project) {
-					$this->log("
-						<div>Exporting to project:</div>
+					$getProjectExportMessage = function($action) use ($logUrl, $project){
+						return "
+							<div>$action exporting to the following project at $logUrl:</div>
 						<div class='remote-project-title'>" . $project['export-project-name'] . "</div>
-					");
+						";
+					};
+
+					$this->log($getProjectExportMessage('Started'));
 
 					try {
 						$apiKey = $project['export-api-key'];
@@ -83,15 +86,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 							'data' => $data
 						]), true);
 
-						$this->log("Project export completed successfully", [
-							'details' => json_encode($results, JSON_PRETTY_PRINT)
-						]);
+						$this->log(
+							$getProjectExportMessage('Finished'),
+							['details' => json_encode($results, JSON_PRETTY_PRINT)]
+						);
 					} catch (Exception $e) {
 						$this->handleException($e);
 					}
 				}
-
-				$this->log("Finished export to $logUrl");
 			}
 
 			$this->removeStatusForInProgressRecords($recordIds);
