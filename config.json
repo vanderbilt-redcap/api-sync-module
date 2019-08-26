@@ -125,11 +125,19 @@
 	},
 	"crons": [
 		{
-			"cron_name": "cron",
-			"cron_description": "API Sync External Module",
+			"cron_name": "exports",
+			"cron_description": "API Sync External Module - Exports",
 			"method": "cron",
 			"cron_frequency": "1",
 			"cron_max_run_time": "86400"
+		},
+		{
+			"cron_name": "imports",
+			"cron_description": "API Sync External Module - Imports",
+			"method": "cron",
+			"cron_frequency": "1",
+			"cron_max_run_time": "86400",
+			"comment": "Imports are in a separate cron so that long running imports do not prevent real-time exports from occurring."
 		}
 	],
 	"compatibility": {

@@ -9,21 +9,30 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	const QUEUED = 'queued';
 	const IN_PROGRESS = 'in progress';
 
-	function cron(){
+	function cron($cronInfo){
 		$originalPid = $_GET['pid'];
+
+		$cronName = $cronInfo['cron_name'];
 
 		foreach($this->framework->getProjectsWithModuleEnabled() as $localProjectId){
 			// This automatically associates all log statements with this project.
 			$_GET['pid'] = $localProjectId;
 
-			$this->handleExports($localProjectId);
-			$this->handleImports($localProjectId);
+			if($cronName === 'exports'){
+				$this->handleExports($localProjectId);
+			}
+			else if($cronName === 'imports'){
+				$this->handleImports($localProjectId);
+			}
+			else{
+				throw new Exception("Unsupported cron name: $cronName");
+			}
 		}
 
 		// Put the pid back the way it was before this cron job (likely doesn't matter, but wanted to be safe)
 		$_GET['pid'] = $originalPid;
 
-		return 'The ' . $this->getModuleName() . ' External Module job completed successfully.';
+		return "The \"{$cronInfo['cron_description']}\" cron job completed successfully.";
 	}
 
 	private function areAnyEmpty($array){
