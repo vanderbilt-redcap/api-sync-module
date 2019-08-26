@@ -81,7 +81,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 					$getProjectExportMessage = function($action) use ($logUrl, $project){
 						return "
 							<div>$action exporting to the following project at $logUrl:</div>
-						<div class='remote-project-title'>" . $project['export-project-name'] . "</div>
+							<div class='remote-project-title'>" . $project['export-project-name'] . "</div>
 						";
 					};
 
