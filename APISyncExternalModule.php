@@ -578,19 +578,18 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 		else{
 			?>
-				<form action="<?=$this->getUrl('sync-now.php')?>" method="post">
-				<button>Sync Now</button>
-				</form>
+			<form action="<?=$this->getUrl('sync-now.php')?>" method="post">
+				<button>Import Now</button> - Imports from all sources now.
+			</form>
 			<?php
-
 		}
 	}
 
 	function redcap_save_record($project_id, $record, $instrument, $event_id, $group_id, $survey_hash, $response_id){
-		$this->queue($record);
+		$this->queueForExport($record);
 	}
 
-	private function queue($record){
+	function queueForExport($record){
 		$this->setProjectSetting(self::RECORD_STATUS_KEY_PREFIX . $record, self::QUEUED);
 	}
 }

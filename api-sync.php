@@ -1,3 +1,6 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/8.11.8/sweetalert2.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/spin.js/2.3.2/spin.min.js"></script>
+
 <div id="api-sync-module-wrapper">
 	<?=$module->initializeJavascriptModuleObject()?>
 	<script>
@@ -34,6 +37,16 @@
 	</script>
 
 	<style>
+		#api-sync-module-wrapper .top-button-container{
+			margin-top: 20px;
+			margin-bottom: 50px;
+		}
+
+		#api-sync-module-wrapper .top-button-container button{
+			margin: 3px;
+			min-width: 160px;
+		}
+
 		#api-sync-module-wrapper th{
 			font-weight: bold;
 		}
@@ -54,16 +67,68 @@
 			/* This currently only exists for the output of the formatURLForLogs() method. */
 			text-decoration: underline;
 		}
+
+		.api-sync-module-spinner{
+			position: relative;
+			height: 60px;
+			margin-top: -10px;
+		}
+
+		.swal2-popup{
+		  font-size: 14px;
+		  width: 475px;
+		}
+
+		.swal2-content{
+		  font-weight: 500;
+		}
 	</style>
 
 	<div style="color: #800000;font-size: 16px;font-weight: bold;"><?=$module->getModuleName()?></div>
-	<br>
-	<?php
-	$module->renderSyncNowHtml();
-	?>
-	<br>
-	<br>
-	<br>
+
+	<div class="top-button-container">
+		<button class="api-sync-export-button">Export All Records Now</button> - Exports all records to all destinations now.  No records will be removed.
+		<script>
+			Swal = Swal.mixin({
+				buttonsStyling: false,
+				allowOutsideClick: false
+			})
+
+			$('.api-sync-export-button').click(function(){
+				var spinnerElement = $('<div class="api-sync-module-spinner"></div>')[0]
+				new Spinner().spin(spinnerElement)
+
+				Swal.fire({
+					title: spinnerElement,
+					text: 'Queuing all records for export...',
+					showConfirmButton: false
+				})
+
+				var startTime = Date.now()
+				$.post(<?=json_encode($module->getUrl('queue-all-records-for-export.php'))?>, null, function(response){
+					var millisPassed = Date.now() - startTime
+					var delay = 2000 - millisPassed
+					if(delay < 0){
+						delay = 0
+					}
+
+					setTimeout(function(){
+						if(response === 'success'){
+							Swal.fire('', 'All records have been queued for export.  Check this page again after about a minute to see export progress logs.')
+						}
+						else{
+							Swal.fire('', 'An error occurred.  Please see the browser console for details.')
+							console.log('API Sync Queue All Records Response:', response	)
+						}
+					}, delay)
+				})
+			})
+		</script>
+		<?php
+		$module->renderSyncNowHtml();
+		?>
+	</div>
+
 	<h5>Recent Log Entries</h5>
 	<p>(refresh the page to see the latest)</p>
 	<table class="table table-striped" style="max-width: 1000px;">
