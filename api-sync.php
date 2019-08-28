@@ -87,7 +87,7 @@
 	<div style="color: #800000;font-size: 16px;font-weight: bold;"><?=$module->getModuleName()?></div>
 
 	<div class="top-button-container">
-		<button class="api-sync-export-button">Export All Records Now</button> - Exports all records to all destinations now.  No records will be removed.
+		<button class="api-sync-export-button">Export All Records Now</button> - Exports all existing records to all destinations now.  No records will be removed.
 		<script>
 			Swal = Swal.mixin({
 				buttonsStyling: false,

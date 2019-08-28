@@ -6,7 +6,7 @@ $records = json_decode(REDCap::getData($module->getProjectId(), 'json', null, $r
 
 foreach($records as $record){
 	$recordId = $record[$recordIdFieldName];
-	$module->queueForExport($recordId);
+	$module->queueForUpdate($recordId);
 }
 
 echo 'success';

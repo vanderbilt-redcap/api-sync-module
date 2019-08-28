@@ -6,6 +6,9 @@ use REDCap;
 
 class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	const RECORD_STATUS_KEY_PREFIX = 'record-status-';
+
+	const UPDATE = 'update';
+	const DELETE = 'delete';
 	const QUEUED = 'queued';
 	const IN_PROGRESS = 'in progress';
 
@@ -53,34 +56,38 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			return;
 		}
 
-		// Mark records as "in progress" before retrieving their IDs so we can distinguish
-		// between records queued before and after we call getData().
-		// Records queued afterward should remain queued to trigger the next export.
-		$numberOfRecordsInProgress = $this->markQueuedRecordsAsInProgress();
-		if($numberOfRecordsInProgress === 0){
-			// No queued records existed, no need to continue.
-			return;
+		foreach([self::UPDATE, self::DELETE] as $type){
+			$this->export($servers, $type);
 		}
+	}
 
-		$chunks = array_chunk($this->getInProgressRecordsIds(), $this->getExportBatchSize());
+	private function export($servers, $type){
+		// Mark records as "in progress" before retrieving their IDs so we can distinguish
+		// between records queued before and after the export starts.
+		// Records queued afterward should remain queued to trigger the next export.
+		$this->markQueuedRecordsAsInProgress($type);
+
+		$chunks = array_chunk($this->getInProgressRecordsIds($type), $this->getExportBatchSize($type));
 		for($i=0; $i<count($chunks); $i++) {
 			$recordIds = $chunks[$i];
 			$batchText = "batch " . ($i+1) . " of " . count($chunks);
 
-			$this->log("Preparing to export $batchText", [
+			$this->log("Preparing to export {$type}s for $batchText", [
 				'details' => json_encode(['Record IDs' => $recordIds], JSON_PRETTY_PRINT)
 			]);
 
-			$data = REDCap::getData($this->getProjectId(), 'json', $recordIds);
+			if($type === self::UPDATE){
+				$data = REDCap::getData($this->getProjectId(), 'json', $recordIds);
+			}
 
 			foreach ($servers as $server) {
 				$url = $server['export-redcap-url'];
 				$logUrl = $this->formatURLForLogs($url);
 
 				foreach ($server['export-projects'] as $project) {
-					$getProjectExportMessage = function($action) use ($logUrl, $project){
+					$getProjectExportMessage = function($action) use ($type, $logUrl, $project){
 						return "
-							<div>$action exporting to the following project at $logUrl:</div>
+							<div>$action exporting {$type}s to the following project at $logUrl:</div>
 							<div class='remote-project-title'>" . $project['export-project-name'] . "</div>
 						";
 					};
@@ -89,11 +96,22 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 					try {
 						$apiKey = $project['export-api-key'];
-						$results = json_decode($this->apiRequest($url, $apiKey, [
-							'content' => 'record',
-							'overwriteBehavior' => 'overwrite',
-							'data' => $data
-						]), true);
+
+						$args = ['content' => 'record'];
+
+						if($type === self::UPDATE){
+							$args['overwriteBehavior'] = 'overwrite';
+							$args['data'] = $data;
+						}
+						else if($type === self::DELETE){
+							$args['action'] = 'delete';
+							$args['records'] = $recordIds;
+						}
+						else{
+							throw new Exception("Unsupported export type: $type");
+						}
+
+						$results = json_decode($this->apiRequest($url, $apiKey, $args), true);
 
 						$this->log(
 							$getProjectExportMessage('Finished'),
@@ -105,12 +123,19 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				}
 			}
 
-			$this->removeStatusForInProgressRecords($recordIds);
-			$this->log("Finished exporting $batchText");
+			$this->removeStatusForInProgressRecords($type, $recordIds);
+			$this->log("Finished exporting {$type}s for $batchText");
 		}
 	}
 
-	private function getExportBatchSize(){
+	private function getExportBatchSize($type){
+		if($type === self::DELETE){
+			// If any record fails to delete it will stop the deletion of other records.
+			// The simplest solution for this was to limit the batch size to one.
+			// In the future, we could potentially parse failed record IDs out of responses and remove them from batches instead.
+			return 1;
+		}
+
 		$size = $this->getProjectSetting('export-batch-size');
 		if(!$size){
 			$size = 100;
@@ -119,21 +144,19 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $size;
 	}
 
-	private function markQueuedRecordsAsInProgress(){
+	private function markQueuedRecordsAsInProgress($type){
 		$this->recordStatusQuery(
 			"update",
-			"set s.value = '" . self::IN_PROGRESS . "'",
-			"s.value = '" . self::QUEUED . "'"
+			"set s.value = '" . $this->getRecordStatus($type, self::IN_PROGRESS) . "'",
+			"s.value = '" . $this->getRecordStatus($type, self::QUEUED) . "'"
 		);
-
-		return db_affected_rows();
 	}
 
-	private function getInProgressRecordsIds(){
+	private function getInProgressRecordsIds($type){
 		$result = $this->recordStatusQuery(
 			"select `key` from",
 			"",
-			"s.value = '" . self::IN_PROGRESS . "'"
+			"s.value = '" . self::getRecordStatus($type, self::IN_PROGRESS) . "'"
 		);
 
 		$recordIds = [];
@@ -145,7 +168,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $recordIds;
 	}
 
-	private function removeStatusForInProgressRecords($recordIds){
+	private function removeStatusForInProgressRecords($type, $recordIds){
 		$keys = [];
 		foreach($recordIds as $recordId){
 			$keys[] = self::RECORD_STATUS_KEY_PREFIX . $recordId;
@@ -154,7 +177,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$this->recordStatusQuery(
 			"delete s from",
 			"",
-			$this->framework->getSQLInClause('`key`', $keys) . " and s.value = '" . self::IN_PROGRESS . "'"
+			$this->framework->getSQLInClause('`key`', $keys) . " and s.value = '" . self::getRecordStatus($type, self::IN_PROGRESS) . "'"
 		);
 	}
 
@@ -586,10 +609,28 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	function redcap_save_record($project_id, $record, $instrument, $event_id, $group_id, $survey_hash, $response_id){
-		$this->queueForExport($record);
+		$this->queueForUpdate($record);
 	}
 
-	function queueForExport($record){
-		$this->setProjectSetting(self::RECORD_STATUS_KEY_PREFIX . $record, self::QUEUED);
+	function queueForUpdate($record){
+		$this->setRecordStatus($record, self::getRecordStatus(self::UPDATE, self::QUEUED));
+	}
+
+	function redcap_every_page_before_render(){
+	    if(@$_GET['route'] == 'DataEntryController:deleteRecord'){
+	        $this->queueForDelete($_POST['record']);
+	    }
+	}
+
+	function queueForDelete($record){
+		$this->setRecordStatus($record, self::getRecordStatus(self::DELETE, self::QUEUED));
+	}
+
+	private function setRecordStatus($record, $status){
+		$this->setProjectSetting(self::RECORD_STATUS_KEY_PREFIX . $record, $status);
+	}
+
+	private function getRecordStatus($type, $status){
+		return "$type $status";
 	}
 }
