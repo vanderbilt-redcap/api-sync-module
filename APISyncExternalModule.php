@@ -19,10 +19,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$_GET['pid'] = $localProjectId;
 
 			if($cronName === 'exports'){
-				$this->handleExports($localProjectId);
+				$this->handleExports();
 			}
 			else if($cronName === 'imports'){
-				$this->handleImports($localProjectId);
+				$this->handleImports();
 			}
 			else{
 				throw new Exception("Unsupported cron name: $cronName");
@@ -40,8 +40,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return count($array) != count($filteredArray);
 	}
 
-	private function handleExports($localProjectId){
-		$servers = $this->framework->getSubSettings('export-servers', $localProjectId);
+	private function handleExports(){
+		$servers = $this->framework->getSubSettings('export-servers');
 
 		$firstServer = $servers[0];
 		$firstProject = @$firstServer['export-projects'][0];
@@ -71,7 +71,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				'details' => json_encode(['Record IDs' => $recordIds], JSON_PRETTY_PRINT)
 			]);
 
-			$data = REDCap::getData($localProjectId, 'json', $recordIds);
+			$data = REDCap::getData($this->getProjectId(), 'json', $recordIds);
 
 			foreach ($servers as $server) {
 				$url = $server['export-redcap-url'];
@@ -177,8 +177,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $this->query($sql);
 	}
 
-	private function handleImports($localProjectId){
-		$servers = $this->framework->getSubSettings('servers', $localProjectId);
+	private function handleImports(){
+		$servers = $this->framework->getSubSettings('servers');
 		foreach($servers as $server){
 			if(!$this->isTimeToRun($server)){
 				continue;
@@ -199,7 +199,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				try{
 					// The following function takes about 15 minutes to export project 48364 (10,445 records, 1,428 fields, 20MB)
 					// from redcap.vanderbilt.edu to Mark's local.
-					$this->importRecords($localProjectId, $url, $project);
+					$this->importRecords($url, $project);
 				}
 				catch(Exception $e){
 					$this->handleException($e);
@@ -315,7 +315,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $dailyRecordImportHour === $currentHour && $dailyRecordImportMinute === $currentMinute;
 	}
 
-	function importRecords($localProjectId, $url, $project){
+	function importRecords($url, $project){
 		$apiKey = $project['api-key'];
 
 		$this->log("
@@ -363,7 +363,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$instance[$recordIdFieldName] = $recordIdPrefix . $instance[$recordIdFieldName];
 			}
 
-			$stopEarly = $this->importBatch($localProjectId, $project, $batchText, $batchSize, $response);
+			$stopEarly = $this->importBatch($project, $batchText, $batchSize, $response);
 
 			if($stopEarly){
 				return;
@@ -371,7 +371,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
-	private function importBatch($localProjectId, $project, $batchTextPrefix, $batchSize, $response){
+	private function importBatch($project, $batchTextPrefix, $batchSize, $response){
 		// Split the import up into chunks as well to handle projects with many instances per record ID.
 		$chunks = array_chunk($response, $batchSize);
 		$batchCount = count($chunks);
@@ -384,7 +384,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 			$this->log("Importing $batchText (and overwriting matching local records)");
 			$results = \REDCap::saveData(
-					(int)$localProjectId,
+					(int)$this->getProjectId(),
 					'json',
 					json_encode($chunk),
 					'overwrite',
