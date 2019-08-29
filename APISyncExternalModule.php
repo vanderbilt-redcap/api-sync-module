@@ -496,6 +496,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function apiRequest($url, $apiKey, $data){
+		if(strpos($url, '://') === false){
+			$url = "https://$url";
+		}
+
 		$data = array_merge(
 			[
 				'token' => $apiKey,
