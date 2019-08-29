@@ -1,5 +1,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/8.11.8/sweetalert2.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/spin.js/2.3.2/spin.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gasparesganga-jquery-loading-overlay@2.1.6/dist/loadingoverlay.min.js" integrity="sha384-L2MNADX6uJTVkbDNELTUeRjzdfJToVbpmubYJ2C74pwn8FHtJeXa+3RYkDRX43zQ" crossorigin="anonymous"></script>
 
 <div id="api-sync-module-wrapper">
 	<?=$module->initializeJavascriptModuleObject()?>
@@ -82,6 +83,15 @@
 		.swal2-content{
 		  font-weight: 500;
 		}
+
+		#api-sync-module-log-entries_wrapper{
+			max-width: 900px;
+			margin-right: 18px;
+		}
+
+		#api-sync-module-log-entries{
+			width: 100%;
+		}
 	</style>
 
 	<div style="color: #800000;font-size: 16px;font-weight: bold;"><?=$module->getModuleName()?></div>
@@ -131,51 +141,91 @@
 
 	<h5>Recent Log Entries</h5>
 	<p>(refresh the page to see the latest)</p>
-	<table class="table table-striped" style="max-width: 1000px;">
-		<thead>
-			<tr>
-				<th style="min-width: 160px;">Date/Time</th>
-				<th>Message</th>
-				<th style="min-width: 125px;">Details</th>
-			</tr>
-		</thead>
-		<tbody>
-			<?php
 
-			$results = $module->queryLogs("
-				select log_id, timestamp, message, details
-				order by log_id desc
-				limit 2000
-			");
+	<table id="api-sync-module-log-entries" class="table table-striped table-bordered"></table>
 
-			if($results->num_rows === 0){
-				?>
-				<tr>
-					<td colspan="3">No logs available</td>
-				</tr>
-				<?php
-			}
-			else{
-				while($row = $results->fetch_assoc()){
-					$logId = $row['log_id'];
-					$details = $row['details'];
-					?>
-					<tr>
-						<td><?=$row['timestamp']?></td>
-						<td class="message"><?=$row['message']?></td>
-						<td>
-							<?php if(!empty($details)) { ?>
-								<button onclick="ExternalModules.Vanderbilt.APISyncExternalModule.showDetails(<?=$logId?>)">Show Details</button>
-								<script>
-									ExternalModules.Vanderbilt.APISyncExternalModule.details[<?=$logId?>] = <?=json_encode($details)?>
-								</script>
-							<?php } ?>
-						</td>
-					</tr>
-					<?php
-				}
-			}
-			?>
-		</tbody>
-	</table>
+	<script>
+		$(function(){
+			$.fn.dataTable.ext.errMode = 'throw';
+
+			var lastOverlayDisplayTime = 0
+			var table = $('#api-sync-module-log-entries').DataTable({
+				"pageLength": 100,
+		        "processing": true,
+		        "serverSide": true,
+		        "ajax": {
+					url: <?=json_encode($module->getUrl('get-logs.php'))?>
+				},
+				"autoWidth": false,
+				"searching": false,
+				"order": [[ 0, "desc" ]],
+				"columns": [
+					{
+						data: 'timestamp',
+						title: 'Date/Time'
+					},
+					{
+						data: 'message',
+						title: 'Message'
+					},
+					{
+						data: 'details',
+						title: 'Details',
+						render: function(data, type, row, meta){
+							if(!data){
+								return ''
+							}
+
+							ExternalModules.Vanderbilt.APISyncExternalModule.details[row.log_id] = data
+							return "<button onclick='ExternalModules.Vanderbilt.APISyncExternalModule.showDetails(" + row.log_id + ")'>Show Details</button>"
+						}
+					},
+				],
+				"dom": 'Blftip'
+		    }).on( 'draw', function () {
+				var ellipsis = $('.dataTables_paginate .ellipsis')
+				ellipsis.addClass('paginate_button')
+				ellipsis.click(function(e){
+					var jumpToPage = async function(){
+						const response = await Swal.fire({
+							text: 'What page number would like like to jump to?',
+							input: 'text',
+							showCancelButton: true
+						})
+
+						var page = response.value
+
+						var pageCount = table.page.info().pages
+
+						if(isNaN(page) || page < 1 || page > pageCount){
+							Swal.fire('', 'You must enter a page between 1 and ' + pageCount)
+						}
+						else{
+							table.page(page-1).draw('page')
+						}
+					}
+
+					jumpToPage()
+
+					return false
+				})
+		    }).on( 'processing.dt', function(e, settings, processing){
+		    	if(processing){
+					$.LoadingOverlay('show')
+					lastOverlayDisplayTime = Date.now()
+		    	}
+		    	else{
+		    		var secondsSinceDisplay = Date.now() - lastOverlayDisplayTime
+		    		var delay = Math.max(300, secondsSinceDisplay)
+		    		setTimeout(function(){
+						$.LoadingOverlay('hide')
+		    		}, delay)
+		    	}
+		    })
+
+			$.LoadingOverlaySetup({
+				'background': 'rgba(30,30,30,0.7)'
+			})
+		});
+	</script>
 </div>
