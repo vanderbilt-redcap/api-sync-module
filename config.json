@@ -38,7 +38,7 @@
 			"sub_settings" : [
 				{
 					"key": "export-redcap-url",
-					"name": "Remote REDCap URL",
+					"name": "Remote REDCap URL (ex: redcap.vanderbilt.edu)",
 					"type": "text"
 				},
 				{
@@ -79,7 +79,7 @@
 			"sub_settings" : [
 				{
 					"key": "redcap-url",
-					"name": "Remote REDCap URL",
+					"name": "Remote REDCap URL (ex: redcap.vanderbilt.edu)",
 					"type": "text"
 				},
 				{
