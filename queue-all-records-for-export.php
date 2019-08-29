@@ -1,7 +1,7 @@
 <?php
 use REDCap;
 
-$recordIdFieldName = REDCap::getRecordIdField();
+$recordIdFieldName = $module->getRecordIdField();
 $records = json_decode(REDCap::getData($module->getProjectId(), 'json', null, $recordIdFieldName), true);
 
 foreach($records as $record){

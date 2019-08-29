@@ -62,6 +62,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function export($servers, $type){
+		$recordIdFieldName = $this->getRecordIdField();
+
 		// Mark records as "in progress" before retrieving their IDs so we can distinguish
 		// between records queued before and after the export starts.
 		// Records queued afterward should remain queued to trigger the next export.
@@ -100,6 +102,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 						$args = ['content' => 'record'];
 
 						if($type === self::UPDATE){
+							$recordIdPrefix = $project['export-record-id-prefix'];
+							if($recordIdPrefix){
+								$data = json_decode($data, true);
+								$this->prefixRecordIds($data, $recordIdFieldName, $recordIdPrefix);
+								$data = json_encode($data);
+							}
+
 							$args['overwriteBehavior'] = 'overwrite';
 							$args['data'] = $data;
 						}
@@ -368,7 +377,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$numberOfBatches = $numberOfDataPoints / 100000;
 		$batchSize = round(count($recordIds) / $numberOfBatches);
 		$chunks = array_chunk($recordIds, $batchSize);
-		$recordIdPrefix = $project['record-id-prefix'];
 
 		for($i=0; $i<count($chunks); $i++){
 			$chunk = $chunks[$i];
@@ -382,15 +390,19 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				'records' => $chunk
 			]), true);
 
-			foreach($response as &$instance){
-				$instance[$recordIdFieldName] = $recordIdPrefix . $instance[$recordIdFieldName];
-			}
+			$this->prefixRecordIds($response, $recordIdFieldName, $project['record-id-prefix']);
 
 			$stopEarly = $this->importBatch($project, $batchText, $batchSize, $response);
 
 			if($stopEarly){
 				return;
 			}
+		}
+	}
+
+	private function prefixRecordIds(&$data, $recordIdFieldName, $prefix){
+		foreach($data as &$instance){
+			$instance[$recordIdFieldName] = $prefix . $instance[$recordIdFieldName];
 		}
 	}
 
@@ -632,5 +644,26 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 	private function getRecordStatus($type, $status){
 		return "$type $status";
+	}
+
+	/*
+	 * This method will be included in framework version 3, likely in REDCap version 9.3.1.
+	 * If/when the min REDCap version for this module increases past that point,
+	 * this method can be removed.
+	 */
+	function getRecordIdField($pid = null){
+		$pid = db_escape($this->requireProjectId($pid));
+
+		$result = $this->query("
+			select field_name
+			from redcap_metadata
+			where project_id = $pid
+			order by field_order
+			limit 1
+		");
+
+		$row = $result->fetch_assoc();
+
+		return $row['field_name'];
 	}
 }

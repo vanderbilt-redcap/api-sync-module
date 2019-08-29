@@ -56,6 +56,11 @@
 							"key": "export-api-key",
 							"name": "API Key",
 							"type": "text"
+						},
+						{
+							"key": "export-record-id-prefix",
+							"name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'><b>Record ID Prefix</b> - Optional, but highly recommend if data is coming into the destination project from other sources.  This prefix will be prepended to all exported records ids to ensure that they're unique on the destination.</div>",
+							"type": "text"
 						}
 					]
 				}
