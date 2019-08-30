@@ -77,7 +77,7 @@
 
 		.swal2-popup{
 		  font-size: 14px;
-		  width: 475px;
+		  width: 500px;
 		}
 
 		.swal2-content{
@@ -97,43 +97,9 @@
 	<div style="color: #800000;font-size: 16px;font-weight: bold;"><?=$module->getModuleName()?></div>
 
 	<div class="top-button-container">
-		<button class="api-sync-export-button">Export All Records Now</button> - Exports all existing records to all destinations now.  No records will be removed.
-		<script>
-			Swal = Swal.mixin({
-				buttonsStyling: false,
-				allowOutsideClick: false
-			})
-
-			$('.api-sync-export-button').click(function(){
-				var spinnerElement = $('<div class="api-sync-module-spinner"></div>')[0]
-				new Spinner().spin(spinnerElement)
-
-				Swal.fire({
-					title: spinnerElement,
-					text: 'Queuing all records for export...',
-					showConfirmButton: false
-				})
-
-				var startTime = Date.now()
-				$.post(<?=json_encode($module->getUrl('queue-all-records-for-export.php'))?>, null, function(response){
-					var millisPassed = Date.now() - startTime
-					var delay = 2000 - millisPassed
-					if(delay < 0){
-						delay = 0
-					}
-
-					setTimeout(function(){
-						if(response === 'success'){
-							Swal.fire('', 'All records have been queued for export.  Check this page again after about a minute to see export progress logs.')
-						}
-						else{
-							Swal.fire('', 'An error occurred.  Please see the browser console for details.')
-							console.log('API Sync Queue All Records Response:', response	)
-						}
-					}, delay)
-				})
-			})
-		</script>
+		<button class="api-sync-export-queued-button">Export Queued Records Now</button> - Exports recently added/updated/deleted records now.
+		<br>
+		<button class="api-sync-export-all-button">Export All Records Now</button> - Exports all existing records now.  No records will be removed.
 		<?php
 		$module->renderSyncNowHtml();
 		?>
@@ -145,6 +111,59 @@
 	<table id="api-sync-module-log-entries" class="table table-striped table-bordered"></table>
 
 	<script>
+		Swal = Swal.mixin({
+			buttonsStyling: false,
+			allowOutsideClick: false
+		})
+
+		$(function(){
+			var ajaxRequest = function(args) {
+				var spinnerElement = $('<div class="api-sync-module-spinner"></div>')[0]
+				new Spinner().spin(spinnerElement)
+
+				Swal.fire({
+					title: spinnerElement,
+					text: args.loadingMessage,
+					showConfirmButton: false
+				})
+
+				var startTime = Date.now()
+				$.post(args.url, null, function (response) {
+					var millisPassed = Date.now() - startTime
+					var delay = 2000 - millisPassed
+					if (delay < 0) {
+						delay = 0
+					}
+
+					setTimeout(function () {
+						if (response === 'success') {
+							Swal.fire('', args.successMessage + '  Check this page again after about a minute to see export progress logs.')
+						}
+						else {
+							Swal.fire('', 'An error occurred.  Please see the browser console for details.')
+							console.log('API Sync AJAX Response:', response)
+						}
+					}, delay)
+				})
+			}
+
+			$('.api-sync-export-queued-button').click(function(){
+				ajaxRequest({
+					url: <?=json_encode($module->getUrl('export-now.php'))?>,
+					loadingMessage: 'Marking queued records for export now...',
+					successMessage: 'Queued records have been marked for export now.'
+				})
+			})
+
+			$('.api-sync-export-all-button').click(function(){
+				ajaxRequest({
+					url: <?=json_encode($module->getUrl('export-all-records-now.php'))?>,
+					loadingMessage: 'Queuing all records for export...',
+					successMessage: 'All records have been queued for export.'
+				})
+			})
+		})
+
 		$(function(){
 			$.fn.dataTable.ext.errMode = 'throw';
 
@@ -226,6 +245,6 @@
 			$.LoadingOverlaySetup({
 				'background': 'rgba(30,30,30,0.7)'
 			})
-		});
+		})
 	</script>
 </div>

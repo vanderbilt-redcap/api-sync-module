@@ -22,12 +22,27 @@
 		},
 		{
 			"key": "export-descriptive",
-			"name": "<h5 style='margin-top: 10px'>Exports</h5> Exports overwrite remote data with local data.  Records are automatically exported individually about a minute after a record is saved or deleted.  All records can be exported at once via the <b>API Sync</b> page/link in the left menu.",
+			"name": "<h5 style='margin-top: 10px'>Exports</h5> Exports overwrite remote data with local data.  Records are queued for export when they're added, updated, or deleted.  Automatic exports of queued records can be configured below.  All records may also be exported at once via the <b>API Sync</b> page/link in the left menu.",
 			"type": "descriptive"
 		},
 		{
+			"key": "export-every-minute",
+			"name": "<b>Export Every Minute</b><br>• Overrides the daily/hourly options below",
+			"type": "checkbox"
+		},
+		{
+			"key": "export-minute",
+			"name": "<b>Daily/Hourly Export Minute (0-59)</b><br>• The minute on which daily or hourly exports will occur<br>• If omitted, neither daily nor hourly exports will occur",
+			"type": "text"
+		},
+		{
+			"key": "export-hour",
+			"name": "<b>Daily Export Hour (0-23)</b><br>• The hour on which daily exports will occur<br>• If omitted, exports will occur hourly<br> &nbsp;&nbsp;(unless <b>Export Every Minute</b> is checked)",
+			"type": "text"
+		},
+		{
 			"key": "export-batch-size",
-			"name": "Export batch size (optional)",
+			"name": "Export Batch Size (optional)",
 			"type": "text"
 		},
 		{
@@ -68,7 +83,7 @@
 		},
 		{
 			"key": "import-descriptive",
-			"name": "<h5 style='margin-top: 10px'>Imports</h5> Imports overwrite local data with remote data.  Imports can be configured to occur automatically once a day, or manually via the <b>API Sync</b> page/link in the left menu.  Imports may take a long time on large projects.  In one test case an import took 15 minutes for a project with about 10,000 records and 1,500 fields.",
+			"name": "<h5 style='margin-top: 10px'>Imports</h5> Imports overwrite local data with remote data.  Imports can be configured to occur automatically below, or can be triggered manually via the <b>API Sync</b> page/link in the left menu.  Imports may take a long time on large projects.  In one test case an import took 15 minutes for a project with about 10,000 records and 1,500 fields.",
 			"type": "descriptive"
 		},
 		{
@@ -83,13 +98,13 @@
 					"type": "text"
 				},
 				{
-					"key": "daily-record-import-hour",
-					"name": "Daily Record Import Hour (0-23)",
+					"key": "daily-record-import-minute",
+					"name": "<div style='display: inline-block; vertical-align: top'><b>Daily/Hourly Import Minute (0-59)</b><br>• The minute on which daily or hourly imports will occur<br>• If omitted, neither daily nor hourly imports will occur</div>",
 					"type": "text"
 				},
 				{
-					"key": "daily-record-import-minute",
-					"name": "Daily Record Import Minute (0-59)",
+					"key": "daily-record-import-hour",
+					"name": "<div style='display: inline-block; vertical-align: top'><b>Daily Import Hour (0-23)</b><br>• The hour on which daily imports will occur<br>• If omitted, imports will occur hourly</div>",
 					"type": "text"
 				},
 				{

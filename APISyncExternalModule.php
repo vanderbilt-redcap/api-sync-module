@@ -62,6 +62,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function export($servers, $type){
+		if(!$this->isTimeToRunExports()){
+			return;
+		}
+
 		$recordIdFieldName = $this->getRecordIdField();
 
 		// Mark records as "in progress" before retrieving their IDs so we can distinguish
@@ -212,7 +216,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	private function handleImports(){
 		$servers = $this->framework->getSubSettings('servers');
 		foreach($servers as $server){
-			if(!$this->isTimeToRun($server)){
+			if(!$this->isTimeToRunImports($server)){
 				continue;
 			}
 
@@ -320,31 +324,59 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		);
 	}
 
-	private function isTimeToRun($server){
+	private function isTimeToRunExports(){
+		$exportNow = $this->getProjectSetting('export-now');
+		if($exportNow){
+			$this->removeProjectSetting('export-now');
+			return true;
+		}
+
+		if($this->getProjectSetting('export-every-minute')){
+			return true;
+		}
+
+		$minute = $this->getProjectSetting('export-minute');
+		$hour = $this->getProjectSetting('export-hour');
+
+		return $this->isTimeToRun($minute, $hour);
+	}
+
+	private function isTimeToRunImports($server){
 		$syncNow = $this->getProjectSetting('sync-now');
 		if($syncNow){
 			$this->removeProjectSetting('sync-now');
 			return true;
 		}
 
-		$dailyRecordImportHour = $server['daily-record-import-hour'];
-		$dailyRecordImportMinute = $server['daily-record-import-minute'];
+		return $this->isTimeToRun(
+			$server['daily-record-import-minute'],
+			$server['daily-record-import-hour']
+		);
+	}
 
-		if(empty($dailyRecordImportHour) || empty($dailyRecordImportMinute)){
+	private function isTimeToRun($minute, $hour){
+		if(empty($minute)){
 			return false;
 		}
 
-		$dailyRecordImportHour = (int) $dailyRecordImportHour;
-		$dailyRecordImportMinute = (int) $dailyRecordImportMinute;
+		$minute = (int) $minute;
 
 		// We check the cron start time instead of the current time
 		// in case another module's cron job ran us into the next minute.
 		$cronStartTime = $_SERVER["REQUEST_TIME_FLOAT"];
-
-		$currentHour = (int) date('G', $cronStartTime);
 		$currentMinute = (int) date('i', $cronStartTime);  // The cast is especially important here to get rid of a possible leading zero.
 
-		return $dailyRecordImportHour === $currentHour && $dailyRecordImportMinute === $currentMinute;
+		if($minute !== $currentMinute){
+			return false;
+		}
+
+		if(empty($hour)){
+			return true;
+		}
+
+		$hour = (int) $hour;
+		$currentHour = (int) date('G', $cronStartTime);
+		return $hour === $currentHour;
 	}
 
 	function importRecords($url, $project){
@@ -553,6 +585,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	function validateSettings($settings){
 		$checkNumericSetting = function($settingKey, $settingName, $min, $max) use ($settings) {
 			$values = $settings[$settingKey];
+			if(!is_array($values)){
+				$values = [$values];
+			}
+
 			foreach($values as $value){
 				if (!empty($value) && (!ctype_digit($value) || $value < $min || $value > $max)) {
 					return "The $settingName specified must be between $min and $max.\n";
@@ -561,8 +597,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		};
 
 		$message = "";
-		$message .= $checkNumericSetting('daily-record-import-hour', 'hour', 0, 23);
-		$message .= $checkNumericSetting('daily-record-import-minute', 'minute', 0, 59);
+		$message .= $checkNumericSetting('daily-record-import-hour', 'import hour', 0, 23);
+		$message .= $checkNumericSetting('daily-record-import-minute', 'import minute', 0, 59);
+		$message .= $checkNumericSetting('export-hour', 'export hour', 0, 23);
+		$message .= $checkNumericSetting('export-minute', 'export minute', 0, 59);
 
 		return $message;
 	}

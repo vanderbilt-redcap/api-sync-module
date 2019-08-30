@@ -9,4 +9,4 @@ foreach($records as $record){
 	$module->queueForUpdate($recordId);
 }
 
-echo 'success';
+require_once __DIR__ . '/export-now.php';
