@@ -97,9 +97,9 @@
 	<div style="color: #800000;font-size: 16px;font-weight: bold;"><?=$module->getModuleName()?></div>
 
 	<div class="top-button-container">
-		<button class="api-sync-export-queued-button">Export Queued Records Now</button> - Exports recently added/updated/deleted records now.
+		<button class="api-sync-export-queued-button">Export Queued Records</button> - Exports recently added/updated/deleted records now.
 		<br>
-		<button class="api-sync-export-all-button">Export All Records Now</button> - Exports all existing records now.  No records will be removed.
+		<button class="api-sync-export-all-button">Export All Records</button> - Exports all existing records now.  No records will be removed.
 		<?php
 		$module->renderSyncNowHtml();
 		?>
