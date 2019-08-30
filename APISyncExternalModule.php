@@ -120,7 +120,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 							throw new Exception("Unsupported export type: $type");
 						}
 
-						$results = json_decode($this->apiRequest($url, $apiKey, $args), true);
+						$results = $this->apiRequest($url, $apiKey, $args);
 
 						$this->log(
 							$getProjectExportMessage('Finished'),
@@ -355,16 +355,16 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			<div class='remote-project-title'>" . $this->getProjectTitle($url, $apiKey) . "</div>
 		");
 
-		$fieldNames = json_decode($this->apiRequest($url, $apiKey, [
+		$fieldNames = $this->apiRequest($url, $apiKey, [
 			'content' => 'exportFieldNames'
-		]), true);
+		]);
 
 		$recordIdFieldName = $fieldNames[0]['export_field_name'];
 
-		$records = json_decode($this->apiRequest($url, $apiKey, [
+		$records = $this->apiRequest($url, $apiKey, [
 			'content' => 'record',
 			'fields' => [$recordIdFieldName]
-		]), true);
+		]);
 
 		$recordIds = [];
 		foreach($records as $record){
@@ -384,11 +384,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$batchText = "batch " . ($i+1) . " of " . count($chunks);
 
 			$this->log("Exporting $batchText");
-			$response = json_decode($this->apiRequest($url, $apiKey, [
+			$response = $this->apiRequest($url, $apiKey, [
 				'content' => 'record',
 				'format' => 'json',
 				'records' => $chunk
-			]), true);
+			]);
 
 			$this->prefixRecordIds($response, $recordIdFieldName, $project['record-id-prefix']);
 
@@ -488,9 +488,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function getProjectTitle($url, $apiKey){
-		$response = json_decode($this->apiRequest($url, $apiKey, [
+		$response = $this->apiRequest($url, $apiKey, [
 			'content' => 'project'
-		]), true);
+		]);
 
 		return $response['project_title'];
 	}
@@ -542,7 +542,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			throw new Exception("HTTP error code $httpCode received: $output");
 		}
 
-		return $output;
+		$decodedOutput = json_decode($output, true);
+		if(!$decodedOutput){
+			throw new Exception("An unexpected response was returned: $output");
+		}
+
+		return $decodedOutput;
 	}
 
 	function validateSettings($settings){
