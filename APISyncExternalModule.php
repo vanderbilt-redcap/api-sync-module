@@ -403,12 +403,22 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$recordIds[] = $record[$recordIdFieldName];
 		}
 
-		// Use the number of fields times number of records as a metric to determine a reasonable chunk size.
-		// The following calculation caused about 500MB of maximum memory usage when importing the TIN Database (pid 61715) on the Vanderbilt REDCap test server.
-		$numberOfDataPoints = count($fieldNames) * count($recordIds);
-		$numberOfBatches = $numberOfDataPoints / 100000;
-		$batchSize = round(count($recordIds) / $numberOfBatches);
+		$batchSize = @$project['import-batch-size'];
+		if(empty($batchSize)){
+			// Use the number of fields times number of records as a metric to determine a reasonable chunk size.
+			// The following calculation caused about 500MB of maximum memory usage when importing the TIN Database (pid 61715) on the Vanderbilt REDCap test server.
+			$numberOfDataPoints = count($fieldNames) * count($recordIds);
+			$numberOfBatches = $numberOfDataPoints / 100000;
+			$batchSize = round(count($recordIds) / $numberOfBatches);
+		}
+
 		$chunks = array_chunk($recordIds, $batchSize);
+
+		$metadata = $this->getMetadata($this->getProjectId());
+		$formNamesByField = [];
+		foreach($metadata as $fieldName=>$field){
+			$formNamesByField[$fieldName] = $field['form_name'];
+		}
 
 		for($i=0; $i<count($chunks); $i++){
 			$chunk = $chunks[$i];
@@ -422,7 +432,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				'records' => $chunk
 			]);
 
-			$this->prefixRecordIds($response, $recordIdFieldName, $project['record-id-prefix']);
+			$this->prepareImportData($response, $recordIdFieldName, $project['record-id-prefix'], $formNamesByField);
 
 			$stopEarly = $this->importBatch($project, $batchText, $batchSize, $response);
 
@@ -432,9 +442,40 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
-	private function prefixRecordIds(&$data, $recordIdFieldName, $prefix){
+	private function prepareImportData(&$data, $recordIdFieldName, $prefix, $formNamesByField){
 		foreach($data as &$instance){
 			$instance[$recordIdFieldName] = $prefix . $instance[$recordIdFieldName];
+
+			$this->removeInvalidIncompleteStatuses($instance, $formNamesByField);
+		}
+	}
+
+	private function removeInvalidIncompleteStatuses(&$instance, $formNamesByField){
+		$formValueCounts = [];
+		foreach($formNamesByField as $fieldName=>$formName){
+			if(!isset($formValueCounts[$formName])){
+				$formValueCounts[$formName] = 0;
+			}
+
+			$value = @$instance[$fieldName];
+			if(
+				$value !== ''
+				// The following likely means the field only exists in the local project...we'll allow that without an error for now...
+				&& $value !== null 
+			){
+				$formValueCounts[$formName]++;
+			}
+		}
+
+		foreach($formValueCounts as $formName=>$count){
+			$completeFieldName = "{$formName}_complete";
+			if($count === 0 && $instance[$completeFieldName] === '0'){
+				// Remove complete statuses for forms without data.
+				// We do this because REDCap incorrectly introduces incomplete ('0') statuses during export if no status is actually set.
+				// This will misrepresent the case where someone intentionally marked a form as incomplete without setting any data,
+				// but that's not as important of a use case.
+				unset($instance[$completeFieldName]);
+			}
 		}
 	}
 
