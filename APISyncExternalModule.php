@@ -405,6 +405,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		$batchSize = @$project['import-batch-size'];
 		if(empty($batchSize)){
+			// This calculation should NOT be changed without testing older PHP versions.
+			// PHP 7 is much more memory efficient on REDCap imports than PHP 5.
 			// Use the number of fields times number of records as a metric to determine a reasonable chunk size.
 			// The following calculation caused about 500MB of maximum memory usage when importing the TIN Database (pid 61715) on the Vanderbilt REDCap test server.
 			$numberOfDataPoints = count($fieldNames) * count($recordIds);
