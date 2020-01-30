@@ -755,3 +755,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $row['field_name'];
 	}
 }
+
+// Shim for function that doesn't exist until php 7.
+// This is safe because it's defined in the module's namespace.
+function array_key_first($array){
+	reset($array);
+	return key($array);
+}
