@@ -64,6 +64,10 @@
 			text-overflow: ellipsis;
 		}
 
+		#api-sync-module-wrapper td:nth-child(3) button{
+			margin: 0px 2px;
+		}
+
 		#api-sync-module-wrapper a{
 			/* This currently only exists for the output of the formatURLForLogs() method. */
 			text-decoration: underline;
@@ -188,15 +192,25 @@
 						title: 'Message'
 					},
 					{
-						data: 'details',
-						title: 'Details',
+						title: 'Actions',
 						render: function(data, type, row, meta){
-							if(!data){
-								return ''
+							var html = ''
+							var logId = row.log_id
+							
+							var details = row.details
+							if(details){
+								ExternalModules.Vanderbilt.APISyncExternalModule.details[row.log_id] = details
+								html += "<button onclick='ExternalModules.Vanderbilt.APISyncExternalModule.showDetails(" + logId + ")'>Show Details</button>"
 							}
 
-							ExternalModules.Vanderbilt.APISyncExternalModule.details[row.log_id] = data
-							return "<button onclick='ExternalModules.Vanderbilt.APISyncExternalModule.showDetails(" + row.log_id + ")'>Show Details</button>"
+							// Only allow retrying the last failed import.
+							if(row.failure && meta.row === 1){
+								var form = $('#api-sync-module-wrapper form.retry')
+								form.find('input[name=retry-log-id]').val(logId)
+								form.show()
+							}
+
+							return html
 						}
 					},
 				],

@@ -1,11 +1,14 @@
 <?php
 namespace Vanderbilt\APISyncExternalModule;
 
+require_once __DIR__ . '/Progress.php';
+
 use Exception;
 use REDCap;
 
 class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	const RECORD_STATUS_KEY_PREFIX = 'record-status-';
+	const IMPORT_PROGRESS_SETTING_KEY = 'import-progress';
 
 	const UPDATE = 'update';
 	const DELETE = 'delete';
@@ -214,39 +217,36 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function handleImports(){
+		$progress = new Progress($this);
+
 		$servers = $this->framework->getSubSettings('servers');
 		foreach($servers as $server){
-			if(!$this->isTimeToRunImports($server)){
-				continue;
+			if($this->isTimeToRunImports($server)){
+				// addServer() will have no effect if the server is already in progress.
+				$progress->addServer($server);
 			}
-
-			$url = $server['redcap-url'];
-			$logUrl = $this->formatURLForLogs($url);
-			$serverStartMessage = "Started import from $logUrl";
-			$serverFinishMessage = "Finished import from $logUrl";
-
-			$this->makeSureLastSyncFinished($url, $serverStartMessage, $serverFinishMessage);
-
-			// This log mainly exists to show that the sync process has started, since the next log
-			// doesn't occur until after the API request to get the project name (which could fail).
-			$this->log($serverStartMessage);
-
-			foreach($server['projects'] as $project){
-				try{
-					// The following function takes about 15 minutes to export project 48364 (10,445 records, 1,428 fields, 20MB)
-					// from redcap.vanderbilt.edu to Mark's local.
-					$this->importRecords($url, $project);
-				}
-				catch(Exception $e){
-					$this->handleException($e);
-				}
-			}
-
-			$this->log($serverFinishMessage);
 		}
+
+		try{
+			$this->importNextBatch($progress);
+		}
+		catch(Exception $e){
+			$this->handleException($e);
+			$progress->finishCurrentProject();
+		}
+
+		$this->setImportProgress($progress->serialize());
 	}
 
-	private function formatURLForLogs($url){
+	function getImportProgress(){
+		return $this->getProjectSetting(self::IMPORT_PROGRESS_SETTING_KEY);
+	}
+
+	function setImportProgress($progress){
+		$this->setProjectSetting(self::IMPORT_PROGRESS_SETTING_KEY, $progress);
+	}
+
+	function formatURLForLogs($url){
 		$parts = explode('://', $url);
 		$domainName = $parts[1];
 
@@ -262,7 +262,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$this->sendErrorEmail($message);
 	}
 
-	private function makeSureLastSyncFinished($url, $serverStartMessage, $serverFinishMessage){
+	function makeSureLastSyncFinished($url, $serverStartMessage, $serverFinishMessage){
 		$getLastMessageLogId = function($message){
 			$message = db_real_escape_string($message);
 			$results = $this->queryLogs("select log_id where message = '$message' order by log_id desc limit 1");
@@ -379,72 +379,88 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $hour === $currentHour;
 	}
 
-	function importRecords($url, $project){
+	function importNextBatch(&$progress){
+		$project =& $progress->getCurrentProject();
+		if($project === null){
+			// No projects are in progress.
+			return;
+		}
+
+		$url = $progress->getCurrentServerUrl();
 		$apiKey = $project['api-key'];
+		
+		if($progress->getBatchIndex() === 0){
+			$this->log("
+				<div>Exporting records from the remote project titled:</div>
+				<div class='remote-project-title'>" . $this->getProjectTitle($url, $apiKey) . "</div>
+			");
 
-		$this->log("
-			<div>Exporting records from the remote project titled:</div>
-			<div class='remote-project-title'>" . $this->getProjectTitle($url, $apiKey) . "</div>
-		");
+			$fieldNames = $this->apiRequest($url, $apiKey, [
+				'content' => 'exportFieldNames'
+			]);
 
-		$fieldNames = $this->apiRequest($url, $apiKey, [
-			'content' => 'exportFieldNames'
-		]);
+			$recordIdFieldName = $fieldNames[0]['export_field_name'];
 
-		$recordIdFieldName = $fieldNames[0]['export_field_name'];
+			$records = $this->apiRequest($url, $apiKey, [
+				'content' => 'record',
+				'fields' => [$recordIdFieldName]
+			]);
 
-		$records = $this->apiRequest($url, $apiKey, [
+			$recordIds = [];
+			foreach($records as $record){
+				$recordIds[] = $record[$recordIdFieldName];
+			}
+
+			$batchSize = @$project['import-batch-size'];
+			if(empty($batchSize)){
+				// This calculation should NOT be changed without testing older PHP versions.
+				// PHP 7 is much more memory efficient on REDCap imports than PHP 5.
+				// Use the number of fields times number of records as a metric to determine a reasonable chunk size.
+				// The following calculation caused about 500MB of maximum memory usage when importing the TIN Database (pid 61715) on the Vanderbilt REDCap test server.
+				$numberOfDataPoints = count($fieldNames) * count($recordIds);
+				$numberOfBatches = $numberOfDataPoints / 100000;
+				$batchSize = round(count($recordIds) / $numberOfBatches);
+			}
+
+			$project['record-ids'] = $recordIds;
+			$project['record-id-field-name'] = $recordIdFieldName;
+			$project['import-batch-size'] = $batchSize;
+		}
+		else{
+			$recordIds = $project['record-ids'];
+			$recordIdFieldName = $project['record-id-field-name'];
+			$batchSize = $project['import-batch-size'];
+		}
+
+		$batches = array_chunk($recordIds, $batchSize);
+		$batchIndex = $progress->getBatchIndex();
+		$batch = $batches[$batchIndex];
+		$batchText = "batch " . ($batchIndex+1) . " of " . count($batches);
+
+		$this->log("Exporting $batchText");
+		$response = $this->apiRequest($url, $apiKey, [
 			'content' => 'record',
-			'fields' => [$recordIdFieldName]
+			'format' => 'json',
+			'records' => $batch
 		]);
 
-		$recordIds = [];
-		foreach($records as $record){
-			$recordIds[] = $record[$recordIdFieldName];
+		$this->prepareImportData($response, $recordIdFieldName, $project['record-id-prefix']);
+
+		$stopEarly = $this->importBatch($project, $batchText, $batchSize, $response, $progress);
+		
+		$progress->incrementBatch();
+		if($progress->getBatchIndex() === count($batches) || $stopEarly){
+			$progress->finishCurrentProject();
 		}
+	}
 
-		$batchSize = @$project['import-batch-size'];
-		if(empty($batchSize)){
-			// This calculation should NOT be changed without testing older PHP versions.
-			// PHP 7 is much more memory efficient on REDCap imports than PHP 5.
-			// Use the number of fields times number of records as a metric to determine a reasonable chunk size.
-			// The following calculation caused about 500MB of maximum memory usage when importing the TIN Database (pid 61715) on the Vanderbilt REDCap test server.
-			$numberOfDataPoints = count($fieldNames) * count($recordIds);
-			$numberOfBatches = $numberOfDataPoints / 100000;
-			$batchSize = round(count($recordIds) / $numberOfBatches);
-		}
-
-		$chunks = array_chunk($recordIds, $batchSize);
-
+	private function prepareImportData(&$data, $recordIdFieldName, $prefix){
 		$metadata = $this->getMetadata($this->getProjectId());
 		$formNamesByField = [];
 		foreach($metadata as $fieldName=>$field){
 			$formNamesByField[$fieldName] = $field['form_name'];
 		}
 
-		for($i=0; $i<count($chunks); $i++){
-			$chunk = $chunks[$i];
-
-			$batchText = "batch " . ($i+1) . " of " . count($chunks);
-
-			$this->log("Exporting $batchText");
-			$response = $this->apiRequest($url, $apiKey, [
-				'content' => 'record',
-				'format' => 'json',
-				'records' => $chunk
-			]);
-
-			$this->prepareImportData($response, $recordIdFieldName, $project['record-id-prefix'], $formNamesByField);
-
-			$stopEarly = $this->importBatch($project, $batchText, $batchSize, $response);
-
-			if($stopEarly){
-				return;
-			}
-		}
-	}
-
-	private function prepareImportData(&$data, $recordIdFieldName, $prefix, $formNamesByField){
 		foreach($data as &$instance){
 			$instance[$recordIdFieldName] = $prefix . $instance[$recordIdFieldName];
 
@@ -481,7 +497,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
-	private function importBatch($project, $batchTextPrefix, $batchSize, $response){
+	private function importBatch($project, $batchTextPrefix, $batchSize, $response, &$progress){
 		// Split the import up into chunks as well to handle projects with many instances per record ID.
 		$chunks = array_chunk($response, $batchSize);
 		$batchCount = count($chunks);
@@ -513,6 +529,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			);
 
 			$results = $this->adjustSaveResults($results);
+			$logParams = [
+				'details' => json_encode($results, JSON_PRETTY_PRINT)
+			];
 
 			$stopEarly = false;
 			if(empty($results['errors'])){
@@ -528,11 +547,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			else{
 				$message = "did NOT complete successfully";
 				$stopEarly = true;
+				$logParams['failure'] = true;
+				$logParams['progress'] = $progress->serialize();
 			}
 
-			$this->log("Import $message for $batchText", [
-				'details' => json_encode($results, JSON_PRETTY_PRINT)
-			]);
+			$this->log("Import $message for $batchText", $logParams);
 
 			if(!$project['leave-unlocked']){
 				$this->log("Locking all forms/instances for $batchText");
@@ -648,66 +667,45 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $message;
 	}
 
+	function isImportInProgress(){
+		return $this->getImportProgress() !== null;  
+	}
+
 	function renderSyncNowHtml(){
 		$syncNow = $this->getProjectSetting('sync-now');
 		$currentSyncMessage = null;
 		if($syncNow){
-			$currentSyncMessage = "An import is scheduled to start in less than a minute...";
+			$currentSyncMessage = "An import is scheduled to start in less than a minute.";
 		}
-		else{
-			$result = $this->query("
-				select cron_run_start
-				from redcap_crons c
-				join redcap_crons_history h
-					on c.cron_id = h.cron_id
-				join redcap_external_modules m
-					on m.external_module_id = c.external_module_id
-				where 
-					directory_prefix = '" . $this->PREFIX . "'
-					and cron_run_end is null
-				order by ch_id desc
-			");
-
-			$row = $result->fetch_assoc();
-			if($row){
-				$currentSyncMessage = "A sync is in progress...";
-			}
+		else if ($this->isImportInProgress()){
+			$currentSyncMessage = "A sync is in progress.";
 		}
 
 		if($currentSyncMessage){
 			?>
-			<p><?=$currentSyncMessage?>  For information on canceling it, <a href="javascript:ExternalModules.Vanderbilt.APISyncExternalModule.showSyncCancellationDetails()" style="text-decoration: underline">click here</a>.</p>
-
-			<div id="api-sync-module-cancellation-details" style="display: none;">
-				<p>Only a REDCap system administrator can cancel a sync in progress.</p>
-
-				<p>If you are an administrator, make sure any long running cron processes have finished (or kill them manually).  Once you're sure no cron API Sync tasks are still running, use the following query to manually mark the previous API Sync job as completed so another one can be started:</p>
-				<br>
-				<br>
-				<pre>
-					update
-						redcap_crons c
-						join redcap_crons_history h
-							on c.cron_id = h.cron_id
-						join redcap_external_modules m
-							on m.external_module_id = c.external_module_id
-					set
-						cron_run_end = now(),
-						cron_info = 'The job died unexpectedly.  The run end time was manually set via SQL query.'
-					where
-						directory_prefix = '<?=$this->PREFIX?>'
-						and cron_run_end is null
-				</pre>
-			</div>
+			<p>
+				<?=$currentSyncMessage?>  <a href="<?=$this->getUrl('cancel-sync.php');?>">Click here</a> to cancel it.
+			</p>
 			<?php
 		}
 		else{
+			$syncNowUrl = $this->getUrl('sync-now.php');
 			?>
-			<form action="<?=$this->getUrl('sync-now.php')?>" method="post">
+			<form action="<?=$syncNowUrl?>" method="post">
 				<button>Import Now</button> - Imports from all sources now.
+			</form>
+			<form action="<?=$syncNowUrl?>" method="post" class="retry" style="display: none">
+				<button>Retry Failed Import</button> - Continues the last failed import where it left off.
+				<input type="hidden" name="retry-log-id">
 			</form>
 			<?php
 		}
+	}
+
+	function cancelSync(){
+		$this->log("Cancelling current import");
+		$this->removeProjectSetting('sync-now');
+		$this->removeProjectSetting(self::IMPORT_PROGRESS_SETTING_KEY);
 	}
 
 	function redcap_save_record($project_id, $record, $instrument, $event_id, $group_id, $survey_hash, $response_id){
