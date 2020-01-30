@@ -43,11 +43,6 @@ class Progress
         return array_key_first($this->data);
     }
 
-    private function getServerFinishedMessage($url){
-        $logUrl = $this->module->formatURLForLogs($url);
-        return "Finished import from $logUrl";
-    }
-
     function &getCurrentProject(){
         $url = $this->getCurrentServerUrl();
         if($url === null){
@@ -63,8 +58,6 @@ class Progress
 			$logUrl = $this->module->formatURLForLogs($url);
 			$serverStartMessage = "Started import from $logUrl";
 	
-			$this->module->makeSureLastSyncFinished($url, $serverStartMessage, $this->getServerFinishedMessage($url));
-
 			// This log mainly exists to show that the sync process has started, since the next log
 			// doesn't occur until after the API request to get the project name (which could fail).
 			$this->module->log($serverStartMessage);
@@ -91,7 +84,8 @@ class Progress
         unset($projects[$project['api-key']]);
 
         if(empty($projects)){
-            $this->module->log($this->getServerFinishedMessage($url));
+            $logUrl = $this->module->formatURLForLogs($url);
+            $this->module->log("Finished import from $logUrl");
             unset($this->data[$url]);
         }
     }

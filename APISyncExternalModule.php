@@ -262,31 +262,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$this->sendErrorEmail($message);
 	}
 
-	function makeSureLastSyncFinished($url, $serverStartMessage, $serverFinishMessage){
-		$getLastMessageLogId = function($message){
-			$message = db_real_escape_string($message);
-			$results = $this->queryLogs("select log_id where message = '$message' order by log_id desc limit 1");
-			$row = $results->fetch_assoc();
-			if(!$row){
-				return null;
-			}
-
-			return $row['log_id'];
-		};
-
-		$lastStart = $getLastMessageLogId($serverStartMessage);
-		$lastFinish = $getLastMessageLogId($serverFinishMessage);
-
-		if($lastStart === null){
-			// A sync has never been run on this project.
-			return;
-		}
-
-		if($lastFinish === null || $lastStart > $lastFinish){
-			$this->sendErrorEmail("The last daily sync did not complete.");
-		}
-	}
-
 	private function sendErrorEmail($message){
 		if(!method_exists($this->framework, 'getProject')){
 			// This REDCap version is older and doesn't have the methods needed for error reporting.
