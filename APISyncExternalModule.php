@@ -112,7 +112,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 							$recordIdPrefix = $project['export-record-id-prefix'];
 							if($recordIdPrefix){
 								$data = json_decode($data, true);
-								$this->prefixRecordIds($data, $recordIdFieldName, $recordIdPrefix);
+								$this->prepareImportData($data, $recordIdFieldName, $recordIdPrefix);
 								$data = json_encode($data);
 							}
 
