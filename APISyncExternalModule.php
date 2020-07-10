@@ -108,8 +108,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 						$args = ['content' => 'record'];
 
-						if($type === self::UPDATE){
-							$recordIdPrefix = $project['export-record-id-prefix'];
+                        $recordIdPrefix = $project['export-record-id-prefix'];
+
+                        if($type === self::UPDATE){
 							if($recordIdPrefix){
 								$data = json_decode($data, true);
 								$this->prepareImportData($data, $recordIdFieldName, $recordIdPrefix);
@@ -120,6 +121,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 							$args['data'] = $data;
 						}
 						else if($type === self::DELETE){
+                            if ($recordIdPrefix) {
+                                foreach ($recordIds as &$rId) {
+                                    $rId = $recordIdPrefix . $rId;
+                                }
+                            }
+
 							$args['action'] = 'delete';
 							$args['records'] = $recordIds;
 						}
