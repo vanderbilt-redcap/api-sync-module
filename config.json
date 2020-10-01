@@ -41,6 +41,11 @@
 			"type": "text"
 		},
 		{
+			"key": "export-shift-dates",
+			"name": "Shift Dates",
+			"type": "checkbox"
+		},
+		{
 			"key": "export-batch-size",
 			"name": "Export Batch Size (optional)",
 			"type": "text"

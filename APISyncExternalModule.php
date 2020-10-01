@@ -86,7 +86,23 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			]);
 
 			if($type === self::UPDATE){
-				$data = REDCap::getData($this->getProjectId(), 'json', $recordIds);
+				$dateShiftDates = $this->getProjectSetting('export-shift-dates') === true;
+				$data = REDCap::getData(
+					$this->getProjectId(),
+					'json',
+					$recordIds,
+					[],
+					[],
+					[],
+					false,
+					false,
+					false,
+					false,
+					false,
+					false,
+					false,
+					$dateShiftDates
+				);
 			}
 
 			foreach ($servers as $server) {
