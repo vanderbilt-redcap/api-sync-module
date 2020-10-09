@@ -41,6 +41,11 @@
 			"type": "text"
 		},
 		{
+			"key": "export-exclude-identifiers",
+			"name": "Exclude Identifiers From Exports",
+			"type": "checkbox"
+		},
+		{
 			"key": "export-shift-dates",
 			"name": "Shift Dates",
 			"type": "checkbox"

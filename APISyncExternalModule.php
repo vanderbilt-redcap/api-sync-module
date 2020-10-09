@@ -64,12 +64,30 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
+	function getFieldsWithoutIdentifiers(){
+		$fields = REDCap::getDataDictionary($this->getProjectId(), 'array');
+		$fieldNames = [];
+		foreach($fields as $fieldName=>$details){
+			if($details['identifier'] !== 'y'){
+				$fieldNames[] = $fieldName;
+			}
+		}
+
+		return $fieldNames;
+	}
+
 	private function export($servers, $type){
 		if(!$this->isTimeToRunExports()){
 			return;
 		}
 
 		$recordIdFieldName = $this->getRecordIdField();
+		$dateShiftDates = $this->getProjectSetting('export-shift-dates') === true;
+		
+		$fields = []; // An empty array will cause all fields to be included by default
+		if($this->getProjectSetting('export-exclude-identifiers') === true){
+			$fields = $this->getFieldsWithoutIdentifiers();
+		}
 
 		// Mark records as "in progress" before retrieving their IDs so we can distinguish
 		// between records queued before and after the export starts.
@@ -86,12 +104,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			]);
 
 			if($type === self::UPDATE){
-				$dateShiftDates = $this->getProjectSetting('export-shift-dates') === true;
 				$data = REDCap::getData(
 					$this->getProjectId(),
 					'json',
 					$recordIds,
-					[],
+					$fields,
 					[],
 					[],
 					false,
