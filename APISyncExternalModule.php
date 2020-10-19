@@ -81,6 +81,15 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			return;
 		}
 
+		/**
+		 * WHEN MODIFYING EXPORT BEHAVIOR
+		 * If further export permissions tweaks are made, Paul recommended selecting
+		 * an API key to use/mimic during export to make use of existing export options.
+		 * This would replace the $dateShiftDates and getFieldsWithoutIdentifiers() features below.
+		 * The existing solutions may still be better, but we should consider
+		 * this alternative just to make sure.
+		 */
+
 		$recordIdFieldName = $this->getRecordIdField();
 		$dateShiftDates = $this->getProjectSetting('export-shift-dates') === true;
 		
@@ -201,6 +210,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function markQueuedRecordsAsInProgress($type){
+		/**
+		 * The following query may deadlock on large updates.  Possible solutions include:
+		 * 1. Performing a select first
+		 * 2. Updating rows individually or in batches instead of all at once.
+		 */
 		$this->recordStatusQuery(
 			"update",
 			"set s.value = '" . $this->getRecordStatus($type, self::IN_PROGRESS) . "'",
@@ -517,6 +531,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$chunks = array_chunk($response, $batchSize);
 		$batchCount = count($chunks);
 
+		/**
+		 * To make cron runs more predictably, we could only run one batch (or a couple of batches)
+		 * per cron run, then continue the job during the next cron process.
+		 */
 		for($i=0; $i<$batchCount; $i++){
 			$chunk = $chunks[$i];
 
