@@ -21,6 +21,11 @@
 			"type": "checkbox"
 		},
 		{
+			"key": "log-requests",
+			"name": "Log all API requests (only enable temporarily for debugging)",
+			"type": "checkbox"
+		},
+		{
 			"key": "export-descriptive",
 			"name": "<h5 style='margin-top: 10px'>Exports</h5> Exports overwrite remote data with local data.  Records are queued for export when they're added, updated, or deleted.  Automatic exports of queued records can be configured below.  All records may also be exported at once via the <b>API Sync</b> page/link in the left menu.",
 			"type": "descriptive"

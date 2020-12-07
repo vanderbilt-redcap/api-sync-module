@@ -156,7 +156,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 							if($recordIdPrefix){
 								$data = json_decode($data, true);
 								$this->prepareImportData($data, $recordIdFieldName, $recordIdPrefix);
-								$data = json_encode($data);
+								$data = json_encode($data, JSON_PRETTY_PRINT);
 							}
 
 							$args['overwriteBehavior'] = 'overwrite';
@@ -627,6 +627,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$url = "https://$url";
 		}
 
+		$url = "$url/api/";
+
 		$data = array_merge(
 			[
 				'token' => $apiKey,
@@ -642,8 +644,16 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$data
 		);
 
+		if($this->getProjectSetting('log-requests')){
+			$this->log('API Request', [
+				'details' => json_encode(array_merge($data,[
+					'url' => $url
+				]), JSON_PRETTY_PRINT),
+			]);
+		}
+
 		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, "$url/api/");
+		curl_setopt($ch, CURLOPT_URL, $url);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 		curl_setopt($ch, CURLOPT_VERBOSE, 0);
