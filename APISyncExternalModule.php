@@ -90,7 +90,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		 * this alternative just to make sure.
 		 */
 
-		$recordIdFieldName = $this->getRecordIdField();
 		$dateShiftDates = $this->getProjectSetting('export-shift-dates') === true;
 		
 		$fields = []; // An empty array will cause all fields to be included by default
@@ -103,6 +102,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		// Records queued afterward should remain queued to trigger the next export.
 		$this->markQueuedRecordsAsInProgress($type);
 
+		$maxSubBatchSize = $this->getExportSubBatchSize();
+
 		$chunks = array_chunk($this->getInProgressRecordsIds($type), $this->getExportBatchSize($type));
 		for($i=0; $i<count($chunks); $i++) {
 			$recordIds = $chunks[$i];
@@ -113,7 +114,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			]);
 
 			if($type === self::UPDATE){
-				$data = REDCap::getData(
+				$data = json_decode(REDCap::getData(
 					$this->getProjectId(),
 					'json',
 					$recordIds,
@@ -128,68 +129,105 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 					false,
 					false,
 					$dateShiftDates
-				);
-			}
+				), true);
 
-			foreach ($servers as $server) {
-				$url = $server['export-redcap-url'];
-				$logUrl = $this->formatURLForLogs($url);
+				$subBatchData = [];
+				$subBatchSize = 0;
+				$subBatchNumber = 1;
+				for($rowIndex=0; $rowIndex<count($data); $rowIndex++){
+					$row = $data[$rowIndex];
+					$rowSize = strlen(json_encode($row));
 
-				foreach ($server['export-projects'] as $project) {
-					$getProjectExportMessage = function($action) use ($type, $logUrl, $project){
-						return "
-							<div>$action exporting {$type}s to the following project at $logUrl:</div>
-							<div class='remote-project-title'>" . $project['export-project-name'] . "</div>
-						";
-					};
+					$spaceLeftInSubBatch = $maxSubBatchSize - $subBatchSize;
+					if($rowSize > $spaceLeftInSubBatch){
+						if($subBatchSize === 0){
+							$this->log("The export failed because the sub-batch size setting is not large enough to handle the data in the details of this log message.", [
+								'details' => json_encode($row, JSON_PRETTY_PRINT)
+							]);
 
-					$this->log($getProjectExportMessage('Started'));
-
-					try {
-						$apiKey = $project['export-api-key'];
-
-						$args = ['content' => 'record'];
-
-                        $recordIdPrefix = $project['export-record-id-prefix'];
-
-                        if($type === self::UPDATE){
-							if($recordIdPrefix){
-								$data = json_decode($data, true);
-								$this->prepareImportData($data, $recordIdFieldName, $recordIdPrefix);
-								$data = json_encode($data, JSON_PRETTY_PRINT);
-							}
-
-							$args['overwriteBehavior'] = 'overwrite';
-							$args['data'] = $data;
-						}
-						else if($type === self::DELETE){
-                            if ($recordIdPrefix) {
-                                foreach ($recordIds as &$rId) {
-                                    $rId = $recordIdPrefix . $rId;
-                                }
-                            }
-
-							$args['action'] = 'delete';
-							$args['records'] = $recordIds;
-						}
-						else{
-							throw new Exception("Unsupported export type: $type");
+							throw new Exception("The export failed because of a sub-batch size error.  See the API Sync page for project " . $this->getProjectId() . " for details.");
 						}
 
-						$results = $this->apiRequest($url, $apiKey, $args);
+						$this->exportSubBatch($servers, $type, $subBatchData, $subBatchNumber);
+						$subBatchData = [];
+						$subBatchSize = 0;
+						$subBatchNumber++;
+					}
 
-						$this->log(
-							$getProjectExportMessage('Finished'),
-							['details' => json_encode($results, JSON_PRETTY_PRINT)]
-						);
-					} catch (Exception $e) {
-						$this->handleException($e);
+					$subBatchData[] = $row;
+					$subBatchSize += $rowSize;
+
+					$isLastRow = $rowIndex === count($data)-1;
+					if($isLastRow){
+						$this->exportSubBatch($servers, $type, $subBatchData, $subBatchNumber);
 					}
 				}
+			}
+			else if($type === self::DELETE){
+				$this->exportSubBatch($servers, $type, $recordIds, 1);
+			}
+			else{
+				throw new Exception("Unsupported export type: $type");
 			}
 
 			$this->removeStatusForInProgressRecords($type, $recordIds);
 			$this->log("Finished exporting {$type}s for $batchText");
+		}
+	}
+
+	private function exportSubBatch($servers, $type, $data, $subBatchNumber){		
+		$recordIdFieldName = $this->getRecordIdField();
+
+		foreach ($servers as $server) {
+			$url = $server['export-redcap-url'];
+			$logUrl = $this->formatURLForLogs($url);
+
+			foreach ($server['export-projects'] as $project) {
+				$getProjectExportMessage = function($action) use ($type, $subBatchNumber, $logUrl, $project){
+					return "
+						<div>$action exporting $type sub-batch $subBatchNumber to the following project at $logUrl:</div>
+						<div class='remote-project-title'>" . $project['export-project-name'] . "</div>
+					";
+				};
+
+				$this->log($getProjectExportMessage('Started'));
+
+				try {
+					$apiKey = $project['export-api-key'];
+
+					$args = ['content' => 'record'];
+					
+					$recordIdPrefix = $project['export-record-id-prefix'];
+
+					if($type === self::UPDATE){
+						if($recordIdPrefix){
+							$this->prepareImportData($data, $recordIdFieldName, $recordIdPrefix);
+						}
+
+						$args['overwriteBehavior'] = 'overwrite';
+						$args['data'] = json_encode($data, JSON_PRETTY_PRINT);;
+					}
+					else if($type === self::DELETE){
+						if ($recordIdPrefix) {
+							foreach ($data as &$rId) {
+								$rId = $recordIdPrefix . $rId;
+							}
+						}
+
+						$args['action'] = 'delete';
+						$args['records'] = $data;
+					}
+
+					$results = $this->apiRequest($url, $apiKey, $args);
+
+					$this->log(
+						$getProjectExportMessage('Finished'),
+						['details' => json_encode($results, JSON_PRETTY_PRINT)]
+					);
+				} catch (Exception $e) {
+					$this->handleException($e);
+				}
+			}
 		}
 	}
 
@@ -207,6 +245,21 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 
 		return $size;
+	}
+
+	private function getExportSubBatchSize(){
+		$size = $this->getProjectSetting('export-sub-batch-size');
+		if($size === null){
+			/**
+			 * Size estimates won't be exact, so we use 7MB to make sure we stay below an 8MB maximum.
+			 * This is chosen semi-arbitrarily.  For SAVE O2 We did see that OSHU's REDCap server
+			 * seemed to be limited to sending 16MB curl POST requests.
+			 */
+			$size = 7;
+		}
+
+		// Return the size in bytes
+		return $size*1024*1024;
 	}
 
 	private function markQueuedRecordsAsInProgress($type){
@@ -302,7 +355,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 	function formatURLForLogs($url){
 		$parts = explode('://', $url);
-		$domainName = $parts[1];
+
+		if(count($parts) === 1){
+			$domainName = $parts[0];
+		}
+		else{
+			$domainName = $parts[1];
+		}
 
 		return "<b><a href='$url' target='_blank'>$domainName</a></b>";
 	}

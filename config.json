@@ -57,7 +57,12 @@
 		},
 		{
 			"key": "export-batch-size",
-			"name": "Export Batch Size (optional)",
+			"name": "Max records per batch (optional)",
+			"type": "text"
+		},
+		{
+			"key": "export-sub-batch-size",
+			"name": "Max megabytes per sub-batch (optional)",
 			"type": "text"
 		},
 		{
