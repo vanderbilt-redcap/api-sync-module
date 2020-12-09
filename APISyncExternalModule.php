@@ -332,6 +332,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		);
 	}
 
+	function clearExportQueue(){
+		$this->recordStatusQuery(
+			"delete s from",
+			"",
+			"s.`key` like '" . self::RECORD_STATUS_KEY_PREFIX . "%'"
+		);
+	}
+
 	private function recordStatusQuery($actionClause, $setClause, $whereClause){
 		$projectId = $this->getProjectId();
 
