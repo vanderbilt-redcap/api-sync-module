@@ -103,6 +103,8 @@
 		<button class="api-sync-export-queued-button">Export Queued Records</button> - Exports recently added/updated/deleted records now.
 		<br>
 		<button class="api-sync-export-all-button">Export All Records</button> - Exports all existing records now.  No records will be removed.
+		<br>
+		<button class="api-sync-cancel-export-button">Cancel Export</button> - Cancels the active export.
 		<?php
 		$module->renderSyncNowHtml();
 		?>
@@ -163,6 +165,14 @@
 					url: <?=json_encode($module->getUrl('export-all-records-now.php'))?>,
 					loadingMessage: 'Queuing all records for export...',
 					successMessage: 'All records have been queued for export.'
+				})
+			})
+
+			$('.api-sync-cancel-export-button').click(function(){
+				ajaxRequest({
+					url: <?=json_encode($module->getUrl('cancel-export.php'))?>,
+					loadingMessage: 'Cancelling the current export...',
+					successMessage: 'The current export has been cancelled and will stop after the current sub-batch finishes.'
 				})
 			})
 		})

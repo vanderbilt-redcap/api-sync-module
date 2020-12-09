@@ -15,6 +15,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	const QUEUED = 'queued';
 	const IN_PROGRESS = 'in progress';
 
+	const EXPORT_CANCELLED_MESSAGE = 'Export cancelled.';
+
 	function cron($cronInfo){
 		$originalPid = $_GET['pid'];
 
@@ -47,6 +49,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function handleExports(){
+		// In case the previous export was cancelled, or the button pushed when an export wasn't active.
+		$this->setExportCancelled(false);
+
 		$servers = $this->framework->getSubSettings('export-servers');
 
 		$firstServer = $servers[0];
@@ -59,8 +64,18 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			return;
 		}
 
-		foreach([self::UPDATE, self::DELETE] as $type){
-			$this->export($servers, $type);
+		try{
+			foreach([self::UPDATE, self::DELETE] as $type){
+				$this->export($servers, $type);
+			}
+		}
+		catch(\Exception $e){
+			if($e->getMessage() === self::EXPORT_CANCELLED_MESSAGE){
+				// No reason to report this exception since this is an expected use case.
+			}
+			else{
+				throw $e;
+			}
 		}
 	}
 
@@ -227,8 +242,21 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				} catch (Exception $e) {
 					$this->handleException($e);
 				}
+
+				if($this->isExportCancelled()){
+					$this->log(self::EXPORT_CANCELLED_MESSAGE);
+					throw new \Exception(self::EXPORT_CANCELLED_MESSAGE);
+				}
 			}
 		}
+	}
+
+	function isExportCancelled(){
+		return $this->getProjectSetting('export-cancelled') === true;
+	}
+
+	function setExportCancelled($value){
+		return $this->setProjectSetting('export-cancelled', $value);
 	}
 
 	private function getExportBatchSize($type){
