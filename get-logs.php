@@ -16,6 +16,12 @@ $results = $module->queryLogs("
 
 $rows = [];
 while($row = $results->fetch_assoc()){
+	$row['hasDetails'] = $row['details'] !== null;
+
+	// It's a little much for the browser to load all the details into memory.
+	// We now load them on the fly later instead.
+	unset($row['details']);
+
 	$rows[] = $row;
 }
 

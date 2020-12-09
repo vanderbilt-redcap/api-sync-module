@@ -5,14 +5,13 @@
 <div id="api-sync-module-wrapper">
 	<?=$module->initializeJavascriptModuleObject()?>
 	<script>
-		ExternalModules.Vanderbilt.APISyncExternalModule.details = {}
-
 		ExternalModules.Vanderbilt.APISyncExternalModule.showDetails = function(logId){
 			var width = window.innerWidth - 100;
 			var height = window.innerHeight - 200;
-			var content = '<pre style="max-height: ' + height + 'px">' + this.details[logId] + '</pre>'
-
-			simpleDialog(content, 'Details', null, width)
+			$.get(<?=json_encode($module->getUrl('get-log-details.php') . '&log-id=')?> + logId, function(details){
+				var content = '<pre style="max-height: ' + height + 'px">' + details + '</pre>'
+				simpleDialog(content, 'Details', null, width)
+			})
 		}
 
 		ExternalModules.Vanderbilt.APISyncExternalModule.showSyncCancellationDetails = function(){
@@ -197,9 +196,7 @@
 							var html = ''
 							var logId = row.log_id
 							
-							var details = row.details
-							if(details){
-								ExternalModules.Vanderbilt.APISyncExternalModule.details[row.log_id] = details
+							if(row.hasDetails){
 								html += "<button onclick='ExternalModules.Vanderbilt.APISyncExternalModule.showDetails(" + logId + ")'>Show Details</button>"
 							}
 
