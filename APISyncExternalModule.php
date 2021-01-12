@@ -102,11 +102,16 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			"
 				select log_event_id
 				from " . $this->getLogTable() . "
-				where ts >= ?
+				where
+					project_id = ?
+					and ts >= ?
 				order by log_event_id asc
 				limit 1;
 			",
-			(new DateTime)->modify('-1 week')->format('YmdHis')
+			[
+				$this->getProjectId(),
+				(new DateTime)->modify('-1 week')->format('YmdHis')
+			]
 		);
 
 		$weekOldId = $result->fetch_assoc()['log_event_id'];
