@@ -10,10 +10,7 @@
 			"institution": "Vanderbilt University Medical Center"
 		}
 	],
-	"permissions": [
-		"redcap_save_record",
-		"redcap_every_page_before_render"
-	],
+	"permissions": [],
 	"project-settings": [
 		{
 			"key": "disable-error-emails",
@@ -27,7 +24,7 @@
 		},
 		{
 			"key": "export-descriptive",
-			"name": "<h5 style='margin-top: 10px'>Exports</h5> Exports overwrite remote data with local data.  Records are queued for export when they're added, updated, or deleted via the REDCap UI (detected via the 'redcap_save_record' hook).  Records that come into the project via other means (like imports) will NOT be queued.  Automatic exports of queued records can be configured below.  All records may also be exported at once via the <b>API Sync</b> page/link in the left menu.",
+			"name": "<h5 style='margin-top: 10px'>Exports</h5> Exports overwrite remote data with local data. Automatic exports of fields changed since the last export (according the the 'Logging' page) can be configured below.  Initial exports (or exports delayed due to misconfiguration or cron issues) will only sync changes up to one week ago for performance reasons.   All records may also be exported at once via the <b>API Sync</b> page/link in the left menu.",
 			"type": "descriptive"
 		},
 		{

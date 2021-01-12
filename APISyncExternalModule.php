@@ -1,21 +1,23 @@
 <?php
 namespace Vanderbilt\APISyncExternalModule;
 
-require_once __DIR__ . '/Progress.php';
+require_once __DIR__ . '/classes/Progress.php';
+require_once __DIR__ . '/classes/BatchBuilder.php';
 
+use DateTime;
 use Exception;
 use REDCap;
+use stdClass;
 
 class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
-	const RECORD_STATUS_KEY_PREFIX = 'record-status-';
 	const IMPORT_PROGRESS_SETTING_KEY = 'import-progress';
 
 	const UPDATE = 'update';
 	const DELETE = 'delete';
-	const QUEUED = 'queued';
-	const IN_PROGRESS = 'in progress';
 
 	const EXPORT_CANCELLED_MESSAGE = 'Export cancelled.';
+
+	const DATA_VALUES_MAX_LENGTH = (2^16) - 1;
 
 	function cron($cronInfo){
 		$originalPid = $_GET['pid'];
@@ -65,9 +67,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 
 		try{
-			foreach([self::UPDATE, self::DELETE] as $type){
-				$this->export($servers, $type);
-			}
+			$this->export($servers);
 		}
 		catch(\Exception $e){
 			if($e->getMessage() === self::EXPORT_CANCELLED_MESSAGE){
@@ -79,11 +79,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
-	function getFieldsWithoutIdentifiers(){
+	function getIdentifiers(){
 		$fields = REDCap::getDataDictionary($this->getProjectId(), 'array');
 		$fieldNames = [];
 		foreach($fields as $fieldName=>$details){
-			if($details['identifier'] !== 'y'){
+			if($details['identifier'] === 'y'){
 				$fieldNames[] = $fieldName;
 			}
 		}
@@ -91,7 +91,109 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $fieldNames;
 	}
 
-	private function export($servers, $type){
+	// This method can be removed once it makes it into a REDCap version.
+	private function getLogTable(){
+		$result = $this->query('select log_event_table from redcap_projects where project_id = ?', $this->getProjectId());
+		return $result->fetch_assoc()['log_event_table'];
+	}
+
+	private function getLastExportedLogId(){
+		$result = $this->query(
+			"
+				select log_event_id
+				from " . $this->getLogTable() . "
+				where ts >= ?
+				order by log_event_id asc
+				limit 1;
+			",
+			(new DateTime)->modify('-1 week')->format('YmdHis')
+		);
+
+		$weekOldId = $result->fetch_assoc()['log_event_id'];
+		$lastExportedId = $this->getProjectSetting('last-exported-log-id');
+
+		/**
+		 * Even if a last exported ID is set, we never want to look back more than week
+		 * because I don't trust REDCap's current indexing to handle queries looking back than far.
+		 */
+		return max($weekOldId, $lastExportedId);
+	}
+
+	private function getLatestLogId(){
+		$result = $this->query("
+			select log_event_id
+			from " . $this->getLogTable() . "
+			order by log_event_id desc
+			limit 1;
+		", []);
+
+		$row = $result->fetch_assoc();
+		return $row['log_event_id'];
+	}
+
+	private function getAllFieldNames(){
+		$dictionary = REDCap::getDataDictionary($this->getProjectId(), 'array');
+		return array_keys($dictionary);
+	}
+
+	private function getBatchesToSync(){
+		$batchBuilder = new BatchBuilder($this->getExportBatchSize());
+
+		if($this->getProjectSetting('export-all-records') === true){
+			$this->removeProjectSetting('export-all-records');
+
+			$recordIdFieldName = $this->getRecordIdField();
+			$records = json_decode(REDCap::getData($this->getProjectId(), 'json', null, $recordIdFieldName), true);
+			$latestLogId = $this->getLatestLogId();
+
+			foreach($records as $record){
+				// An empty fields array will cause all fields to be pulled.
+				$batchBuilder->addEvent($latestLogId, $record[$recordIdFieldName], 'UPDATE', []);
+			}
+
+			return $batchBuilder->getBatches();
+		}
+
+		$lastExportedLogId = $this->getLastExportedLogId();		
+		$result = $this->query("
+			select log_event_id, pk, event, data_values
+			from " . $this->getLogTable() . "
+			where
+				event in ('INSERT', 'UPDATE', 'DELETE')
+				and project_id = ?
+				and log_event_id > ?
+			order by log_event_id asc
+		", [
+			$this->getProjectId(),
+			$lastExportedLogId
+		]);
+
+		while($row = $result->fetch_assoc()){
+			$fields = $this->getChangedFieldNamesForLogRow($row['data_values'], $this->getAllFieldNames());
+			$batchBuilder->addEvent($row['log_event_id'], $row['pk'], $row['event'], $fields);
+		}
+
+		$batches = $batchBuilder->getBatches();
+		return $batches;
+	}
+
+	function getChangedFieldNamesForLogRow($dataValues, $allFieldNames){
+		if(strlen($dataValues) === self::DATA_VALUES_MAX_LENGTH){
+			// The data_values column was maxed out, so all changes were not included.
+			// Sync all fields to make sure all changes are synced.
+			return $allFieldNames;
+		}
+
+		preg_match_all('/\n([a-z0-9_]+)/', "\n$dataValues", $matches);
+
+		/**
+		 * There are cases where non-field names will be matched (ex: the text after a newline in a textarea).
+		 * Use array_intersect() to weed these invalid field names out.
+		 */
+		return array_intersect($allFieldNames, $matches[1]);
+	}
+
+	private function export($servers){
 		if(!$this->isTimeToRunExports()){
 			return;
 		}
@@ -105,30 +207,40 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		 * this alternative just to make sure.
 		 */
 
+		$recordIdFieldName = $this->getRecordIdField();
 		$dateShiftDates = $this->getProjectSetting('export-shift-dates') === true;
-		
-		$fields = []; // An empty array will cause all fields to be included by default
-		if($this->getProjectSetting('export-exclude-identifiers') === true){
-			$fields = $this->getFieldsWithoutIdentifiers();
-		}
-
-		// Mark records as "in progress" before retrieving their IDs so we can distinguish
-		// between records queued before and after the export starts.
-		// Records queued afterward should remain queued to trigger the next export.
-		$this->markQueuedRecordsAsInProgress($type);
-
 		$maxSubBatchSize = $this->getExportSubBatchSize();
 
-		$chunks = array_chunk($this->getInProgressRecordsIds($type), $this->getExportBatchSize($type));
-		for($i=0; $i<count($chunks); $i++) {
-			$recordIds = $chunks[$i];
-			$batchText = "batch " . ($i+1) . " of " . count($chunks);
+		$excludedFieldNames = [];
+		if($this->getProjectSetting('export-exclude-identifiers') === true){
+			$excludedFieldNames = $this->getIdentifiers();
+		}
+
+		$batches = $this->getBatchesToSync();
+		for($i=0; $i<count($batches); $i++) {
+			$batch = $batches[$i];
+
+			$type = $batch->getType();
+			$lastLogId = $batch->getLastLogId();
+			$recordIds = $batch->getRecordIds();
+			$fieldsByRecord = $batch->getFieldsByRecord();
+
+			$batchText = "batch " . ($i+1) . " of " . count($batches);
 
 			$this->log("Preparing to export {$type}s for $batchText", [
-				'details' => json_encode(['Record IDs' => $recordIds], JSON_PRETTY_PRINT)
+				'details' => json_encode([
+					'Last Log ID' => $lastLogId,
+					'Record IDs' => $recordIds
+				], JSON_PRETTY_PRINT)
 			]);
 
 			if($type === self::UPDATE){
+				$fields = $batch->getFields();
+
+				if(!empty($fields)){
+					$fields[] = $recordIdFieldName;
+				}
+
 				$data = json_decode(REDCap::getData(
 					$this->getProjectId(),
 					'json',
@@ -151,6 +263,17 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$subBatchNumber = 1;
 				for($rowIndex=0; $rowIndex<count($data); $rowIndex++){
 					$row = $data[$rowIndex];
+					foreach($batch->getFields() as $field){
+						if(!isset($fieldsByRecord[$row[$recordIdFieldName]][$field])){
+							// This field didn't change for this record, so don't include it in the export.
+							unset($row[$field]);
+						}
+					}
+
+					foreach($excludedFieldNames as $excludedFieldName){
+						unset($row[$excludedFieldName]);
+					}
+
 					$rowSize = strlen(json_encode($row));
 
 					$spaceLeftInSubBatch = $maxSubBatchSize - $subBatchSize;
@@ -185,12 +308,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				throw new Exception("Unsupported export type: $type");
 			}
 
-			$this->removeStatusForInProgressRecords($type, $recordIds);
+			$this->setProjectSetting('last-exported-log-id', $lastLogId);
 			$this->log("Finished exporting {$type}s for $batchText");
 		}
 	}
 
-	private function exportSubBatch($servers, $type, $data, $subBatchNumber){		
+	private function exportSubBatch($servers, $type, $data, $subBatchNumber){
 		$recordIdFieldName = $this->getRecordIdField();
 
 		foreach ($servers as $server) {
@@ -259,15 +382,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $this->setProjectSetting('export-cancelled', $value);
 	}
 
-	private function getExportBatchSize($type){
-		if($type === self::DELETE){
-			// If any record fails to delete it will stop the deletion of other records.
-			// The simplest solution for this was to limit the batch size to one.
-			// In the future, we could potentially parse failed record IDs out of responses and remove them from batches instead.
-			return 1;
-		}
-
-		$size = $this->getProjectSetting('export-batch-size');
+	private function getExportBatchSize(){
+		$size = (int) $this->getProjectSetting('export-batch-size');
 		if(!$size){
 			$size = 100;
 		}
@@ -290,73 +406,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $size*1024*1024;
 	}
 
-	private function markQueuedRecordsAsInProgress($type){
-		/**
-		 * The following query may deadlock on large updates.  Possible solutions include:
-		 * 1. Performing a select first
-		 * 2. Updating rows individually or in batches instead of all at once.
-		 */
-		$this->recordStatusQuery(
-			"update",
-			"set s.value = '" . $this->getRecordStatus($type, self::IN_PROGRESS) . "'",
-			"s.value = '" . $this->getRecordStatus($type, self::QUEUED) . "'"
-		);
-	}
-
-	private function getInProgressRecordsIds($type){
-		$result = $this->recordStatusQuery(
-			"select `key` from",
-			"",
-			"s.value = '" . self::getRecordStatus($type, self::IN_PROGRESS) . "'"
-		);
-
-		$recordIds = [];
-		while($row = $result->fetch_assoc()) {
-			$key = $row['key'];
-			$recordIds[] = substr($key, strlen(self::RECORD_STATUS_KEY_PREFIX));
-		}
-
-		return $recordIds;
-	}
-
-	private function removeStatusForInProgressRecords($type, $recordIds){
-		$keys = [];
-		foreach($recordIds as $recordId){
-			$keys[] = self::RECORD_STATUS_KEY_PREFIX . $recordId;
-		}
-
-		$this->recordStatusQuery(
-			"delete s from",
-			"",
-			$this->framework->getSQLInClause('`key`', $keys) . " and s.value = '" . self::getRecordStatus($type, self::IN_PROGRESS) . "'"
-		);
-	}
-
 	function clearExportQueue(){
-		$this->recordStatusQuery(
-			"delete s from",
-			"",
-			"s.`key` like '" . self::RECORD_STATUS_KEY_PREFIX . "%'"
-		);
-	}
-
-	private function recordStatusQuery($actionClause, $setClause, $whereClause){
-		$projectId = $this->getProjectId();
-
-		$sql = "
-			$actionClause
-			redcap_external_module_settings s
-			join redcap_external_modules m
-				on m.external_module_id = s.external_module_id
-			$setClause
-			where
-				m.directory_prefix = '" . db_real_escape_string($this->PREFIX) . "'
-				and project_id = $projectId
-				and `key` like '" . self::RECORD_STATUS_KEY_PREFIX . "%'
-				and $whereClause
-		";
-
-		return $this->query($sql);
+		$this->setProjectSetting('last-exported-log-id', $this->getLatestLogId());
 	}
 
 	private function handleImports(){
@@ -844,32 +895,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$this->log("Cancelling current import");
 		$this->removeProjectSetting('sync-now');
 		$this->removeProjectSetting(self::IMPORT_PROGRESS_SETTING_KEY);
-	}
-
-	function redcap_save_record($project_id, $record, $instrument, $event_id, $group_id, $survey_hash, $response_id){
-		$this->queueForUpdate($record);
-	}
-
-	function queueForUpdate($record){
-		$this->setRecordStatus($record, self::getRecordStatus(self::UPDATE, self::QUEUED));
-	}
-
-	function redcap_every_page_before_render(){
-	    if(@$_GET['route'] == 'DataEntryController:deleteRecord'){
-	        $this->queueForDelete($_POST['record']);
-	    }
-	}
-
-	function queueForDelete($record){
-		$this->setRecordStatus($record, self::getRecordStatus(self::DELETE, self::QUEUED));
-	}
-
-	private function setRecordStatus($record, $status){
-		$this->setProjectSetting(self::RECORD_STATUS_KEY_PREFIX . $record, $status);
-	}
-
-	private function getRecordStatus($type, $status){
-		return "$type $status";
 	}
 
 	/*
