@@ -867,7 +867,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$currentSyncMessage = "An import is scheduled to start in less than a minute.";
 		}
 		else if ($this->isImportInProgress()){
-			$currentSyncMessage = "A sync is in progress.";
+			$currentSyncMessage = "An import may be in progress.";
 		}
 
 		if($currentSyncMessage){
