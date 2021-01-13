@@ -18,6 +18,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	const EXPORT_CANCELLED_MESSAGE = 'Export cancelled.';
 
 	const DATA_VALUES_MAX_LENGTH = (2^16) - 1;
+	const MAX_LOG_QUERY_PERIOD = '1 week';
 
 	function cron($cronInfo){
 		$originalPid = $_GET['pid'];
@@ -74,7 +75,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				// No reason to report this exception since this is an expected use case.
 			}
 			else{
-				throw $e;
+				$this->handleException($e);
 			}
 		}
 	}
@@ -110,7 +111,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			",
 			[
 				$this->getProjectId(),
-				(new DateTime)->modify('-1 week')->format('YmdHis')
+				(new DateTime)->modify('-' . self::MAX_LOG_QUERY_PERIOD)->format('YmdHis')
 			]
 		);
 
@@ -335,41 +336,37 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 				$this->log($getProjectExportMessage('Started'));
 
-				try {
-					$apiKey = $project['export-api-key'];
+				$apiKey = $project['export-api-key'];
 
-					$args = ['content' => 'record'];
-					
-					$recordIdPrefix = $project['export-record-id-prefix'];
+				$args = ['content' => 'record'];
+				
+				$recordIdPrefix = $project['export-record-id-prefix'];
 
-					if($type === self::UPDATE){
-						if($recordIdPrefix){
-							$this->prepareImportData($data, $recordIdFieldName, $recordIdPrefix);
-						}
-
-						$args['overwriteBehavior'] = 'overwrite';
-						$args['data'] = json_encode($data, JSON_PRETTY_PRINT);;
-					}
-					else if($type === self::DELETE){
-						if ($recordIdPrefix) {
-							foreach ($data as &$rId) {
-								$rId = $recordIdPrefix . $rId;
-							}
-						}
-
-						$args['action'] = 'delete';
-						$args['records'] = $data;
+				if($type === self::UPDATE){
+					if($recordIdPrefix){
+						$this->prepareImportData($data, $recordIdFieldName, $recordIdPrefix);
 					}
 
-					$results = $this->apiRequest($url, $apiKey, $args);
-
-					$this->log(
-						$getProjectExportMessage('Finished'),
-						['details' => json_encode($results, JSON_PRETTY_PRINT)]
-					);
-				} catch (Exception $e) {
-					$this->handleException($e);
+					$args['overwriteBehavior'] = 'overwrite';
+					$args['data'] = json_encode($data, JSON_PRETTY_PRINT);;
 				}
+				else if($type === self::DELETE){
+					if ($recordIdPrefix) {
+						foreach ($data as &$rId) {
+							$rId = $recordIdPrefix . $rId;
+						}
+					}
+
+					$args['action'] = 'delete';
+					$args['records'] = $data;
+				}
+
+				$results = $this->apiRequest($url, $apiKey, $args);
+
+				$this->log(
+					$getProjectExportMessage('Finished'),
+					['details' => json_encode($results, JSON_PRETTY_PRINT)]
+				);
 
 				if($this->isExportCancelled()){
 					$this->log(self::EXPORT_CANCELLED_MESSAGE);
@@ -459,12 +456,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function handleException($e){
-		$message = "An error occurred.";
-		$this->log("$message  Click 'Show Details' for more info.", [
+		$this->log("An error occurred.  Click 'Show Details' for more info.", [
 			'details' => $e->getMessage() . "\n" . $e->getTraceAsString()
 		]);
 
-		$this->sendErrorEmail($message);
+		$this->sendErrorEmail("The API Sync module has encountered an error on project " . $this->getProjectId() . ".  If this error is not addressed within " . self::MAX_LOG_QUERY_PERIOD . ", some changes will not be automatically synced.");
 	}
 
 	private function sendErrorEmail($message){
