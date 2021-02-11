@@ -631,6 +631,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function prepareImportData(&$data, $recordIdFieldName, $prefix){
+		// convert foreign form/event names to local form/event names if translations are logged
+		if ($this->countLogs("message = ?", ['form-translations']) > 0) {
+			$this->translateFormNames($data);
+		}
+		if ($this->countLogs("message = ?", ['event-translations']) > 0) {
+			$this->translateEventNames($data);
+		}
+		
 		$metadata = $this->getMetadata($this->getProjectId());
 		$formNamesByField = [];
 		foreach($metadata as $fieldName=>$field){
@@ -918,6 +926,70 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		return $row['field_name'];
 	}
+	
+	private function translateFormNames(&$data) {
+		// get translations from module log table
+		$result = $this->queryLogs("SELECT translations WHERE message = ?", [
+			'form-translations'
+		]);
+		
+		// attempt to decode JSON to translations array
+		$translations = json_decode(db_fetch_assoc($result)['translations']);
+		if (!$translations) {
+			throw new \Exception("API Sync module failed to decode JSON to translations array before importing data");
+		}
+		
+		// translate [redcap_repeat_instrument] and [$form . '_complete'] fields where applicable
+		foreach ($data as &$instance) {
+			foreach ($translations as $local_name => $foreign_names) {
+				// [redcap_repeat_instrument] component
+				if (in_array($instance['redcap_repeat_instrument'], $foreign_names, true)) {
+					$instance['redcap_repeat_instrument'] = $local_name;
+				}
+				
+				// [$form . '_complete'] components
+				foreach($foreign_names as $foreign_form_name) {
+					if (isset($instance[$foreign_form_name . '_complete'])) {
+						$instance[$local_name . '_complete'] = $instance[$foreign_form_name . '_complete'];
+						unset($instance[$foreign_form_name . '_complete']);
+					}
+				}
+			}
+		}
+	}
+	
+	private function translateEventNames(&$data) {
+		// get translations from module log table
+		$result = $this->queryLogs("SELECT translations WHERE message = ?", [
+			'event-translations'
+		]);
+		
+		// attempt to decode JSON to translations array
+		$translations = json_decode(db_fetch_assoc($result)['translations']);
+		if (!$translations) {
+			throw new \Exception("API Sync module failed to decode JSON to translations array before importing data");
+		}
+		
+		// translate [redcap_event_name] fields where applicable
+		foreach ($data as &$instance) {
+			foreach ($translations as $local_name => $foreign_names) {
+				// [redcap_event_name] component
+				$event_name_pieces = explode('_arm_', $instance['redcap_event_name']);
+				$event_name = $event_name_pieces[0];
+				$event_arm_number = $event_name_pieces[1];
+				if (in_array($event_name, $foreign_names, true)) {
+					$instance['redcap_event_name'] = $local_name . "_arm_" . $event_arm_number;
+					break;
+				}
+			}
+		}
+	}
+	
+	public function countLogs($whereClause, $parameters){
+		$result = $this->queryLogs("select count(*) where $whereClause", $parameters);
+		$row = $result->fetch_row();
+		return $row[0];
+    }
 }
 
 // Shim for function that doesn't exist until php 7.
