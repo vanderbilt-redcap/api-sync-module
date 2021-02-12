@@ -149,6 +149,16 @@
 							"key": "import-batch-size",
 							"name": "Import Batch Size (optional)",
 							"type": "text"
+						},
+						{
+							"key": "form-translations",
+							"name": "Upload form translations file",
+							"type": "file"
+						},
+						{
+							"key": "event-translations",
+							"name": "Upload event translations file",
+							"type": "file"
 						}
 					]
 				}

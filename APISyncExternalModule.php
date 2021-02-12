@@ -620,6 +620,19 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			'records' => $batch
 		]);
 
+		// will only build translations if doc_id present in $project['form-translations'/'event-translations']
+		$this->buildTranslations($project);
+
+		// translate foreign form names to local form names if form-translations array present in project
+		if (gettype($project['form-translations']) == 'array') {
+			$this->translateFormNames($response, $project['form-translations']);
+		}
+
+		// translate foreign event names to local event names if event-translations array present in project
+		if (gettype($project['event-translations']) == 'array') {
+			$this->translateEventNames($response, $project['event-translations']);
+		}
+
 		$this->prepareImportData($response, $recordIdFieldName, $project['record-id-prefix']);
 
 		$stopEarly = $this->importBatch($project, $batchText, $batchSize, $response, $progress);
@@ -631,14 +644,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function prepareImportData(&$data, $recordIdFieldName, $prefix){
-		// convert foreign form/event names to local form/event names if translations are logged
-		if ($this->countLogs("message = ?", ['form-translations']) > 0) {
-			$this->translateFormNames($data);
-		}
-		if ($this->countLogs("message = ?", ['event-translations']) > 0) {
-			$this->translateEventNames($data);
-		}
-		
 		$metadata = $this->getMetadata($this->getProjectId());
 		$formNamesByField = [];
 		foreach($metadata as $fieldName=>$field){
@@ -927,18 +932,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $row['field_name'];
 	}
 	
-	private function translateFormNames(&$data) {
-		// get translations from module log table
-		$result = $this->queryLogs("SELECT translations WHERE message = ?", [
-			'form-translations'
-		]);
-		
-		// attempt to decode JSON to translations array
-		$translations = json_decode(db_fetch_assoc($result)['translations']);
-		if (!$translations) {
-			throw new \Exception("API Sync module failed to decode JSON to translations array before importing data");
-		}
-		
+	private function translateFormNames(&$data, $translations) {
 		// translate [redcap_repeat_instrument] and [$form . '_complete'] fields where applicable
 		foreach ($data as &$instance) {
 			foreach ($translations as $local_name => $foreign_names) {
@@ -958,18 +952,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 	
-	private function translateEventNames(&$data) {
-		// get translations from module log table
-		$result = $this->queryLogs("SELECT translations WHERE message = ?", [
-			'event-translations'
-		]);
-		
-		// attempt to decode JSON to translations array
-		$translations = json_decode(db_fetch_assoc($result)['translations']);
-		if (!$translations) {
-			throw new \Exception("API Sync module failed to decode JSON to translations array before importing data");
-		}
-		
+	private function translateEventNames(&$data, $translations) {
 		// translate [redcap_event_name] fields where applicable
 		foreach ($data as &$instance) {
 			foreach ($translations as $local_name => $foreign_names) {
@@ -985,11 +968,121 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 	
-	public function countLogs($whereClause, $parameters){
-		$result = $this->queryLogs("select count(*) where $whereClause", $parameters);
-		$row = $result->fetch_row();
-		return $row[0];
-    }
+	private function buildTranslations(&$project) {
+		// if user supplied a form-translations file, convert it to array usable by translateFormNames
+		if (ctype_digit($project['form-translations'])) {
+			// get file information for configured form translations file
+			$form_doc_id = $project['form-translations'];
+			$file_info = $this->getEdocInfo($form_doc_id);
+			
+			if ($file_info) {
+				// ensure it's a plaintext csv that we can open and get a file handle to
+				$extension = strtolower($file_info['file_extension']);
+				$mime_type = strtolower($file_info['mime_type']);
+				if (
+					(strpos($extension, 'csv') !== false) AND
+					(strpos($mime_type, 'text/plain') !== false) AND
+					($file = fopen($file_info['filepath'], 'r'))
+				) {
+					$project['form-translations'] = [];
+					while ($form_names = fgetcsv($file)) {
+						// convert to REDCap form name format
+						foreach ($form_names as $i => $label) {
+							$form_names[$i] = $this->formatFormName($label);
+						}
+						
+						$local_name = array_shift($form_names);
+						$project['form-translations'][$local_name] = $form_names;
+					}
+				}
+			}
+		}
+		
+		// if user supplied a event-translations file, convert it to array usable by translateEventNames
+		if (ctype_digit($project['event-translations'])) {
+			// get file information for configured event translations file
+			$event_doc_id = $project['event-translations'];
+			$file_info = $this->getEdocInfo($event_doc_id);
+			if ($file_info) {
+				// ensure it's a plaintext csv that we can open and get a file handle to
+				$extension = strtolower($file_info['file_extension']);
+				$mime_type = strtolower($file_info['mime_type']);
+				if (
+					(strpos($extension, 'csv') !== false) AND
+					(strpos($mime_type, 'text/plain') !== false) AND
+					($file = fopen($file_info['filepath'], 'r'))
+				) {
+					$project['event-translations'] = [];
+					while ($event_names = fgetcsv($file)) {
+						// convert to REDCap event name format
+						foreach ($event_names as $i => $label) {
+							$event_names[$i] = $this->formatEventName($label);
+						}
+						
+						$local_name = array_shift($event_names);
+						$project['event-translations'][$local_name] = $event_names;
+					}
+				}
+			}
+		}
+	}
+	
+	private function getEdocInfo($doc_id) {
+		$pid = $this->getProjectId();
+		if (!ctype_digit($doc_id) or !ctype_digit($pid)) {
+			return false;
+		}
+		$sql = "SELECT doc_id, stored_name, doc_name, mime_type, file_extension FROM redcap_edocs_metadata WHERE project_id='$pid' AND doc_id='$doc_id'";
+		$result = db_query($sql);
+		while ($row = db_fetch_assoc($result)) {
+			if ($row['doc_id'] == $doc_id) {
+				$row['filepath'] = EDOC_PATH . $row['stored_name'];
+				return $row;
+			}
+		}
+	}
+
+	private function formatEventName($event_label) {
+		// // code copied from \Project::getUniqueEventNames
+		$event_name = trim(label_decode($event_label));
+		// Remove all spaces and non-alphanumeric characters, then make it lower case.
+		$event_name = preg_replace("/[^0-9a-z_ ]/i", '', $event_name);
+		$event_name = strtolower(substr(str_replace(" ", "_", $event_name), 0, 18));
+		// Remove any underscores at the beginning
+		while (substr($event_name, 0, 1) == "_") {
+			$event_name = substr($event_name, 1);
+		}
+		// Remove any underscores at the end
+		while (substr($event_name, -1, 1) == "_") {
+			$event_name = substr($event_name, 0, -1);
+		}
+		// If event name is still blank (maybe because of using multi-byte characters)
+		if ($event_name == '') {
+			// Get first 10 letters of MD5 of the event label
+			$event_name = substr(md5($event_label), 0, 10);
+		}
+		return $event_name;
+	}
+
+	private function formatFormName($form_label) {
+		// code copied from \REDCap::setFormName
+		$form_name = strip_tags(label_decode($form_label));
+		$form_name = preg_replace("/[^a-z0-9_]/", "", str_replace(" ", "_", strtolower(html_entity_decode($form_name, ENT_QUOTES))));
+		// Remove any double underscores, beginning numerals, and beginning/ending underscores
+		while (strpos($form_name, "__") !== false) 		$form_name = str_replace("__", "_", $form_name);
+		while (substr($form_name, 0, 1) == "_") 		$form_name = substr($form_name, 1);
+		while (substr($form_name, -1) == "_") 			$form_name = substr($form_name, 0, -1);
+		while (is_numeric(substr($form_name, 0, 1))) 	$form_name = substr($form_name, 1);
+		while (substr($form_name, 0, 1) == "_") 		$form_name = substr($form_name, 1);
+		// Cannot begin with numeral and cannot be blank
+		if (is_numeric(substr($form_name, 0, 1)) || $form_name == "") {
+			$form_name = substr(preg_replace("/[0-9]/", "", md5($form_name)), 0, 4) . $form_name;
+		}
+		// Make sure it's less than 50 characters long
+		$form_name = substr($form_name, 0, 50);
+		while (substr($form_name, -1) == "_") $form_name = substr($form_name, 0, -1);
+		return $form_name;
+	}
 }
 
 // Shim for function that doesn't exist until php 7.
