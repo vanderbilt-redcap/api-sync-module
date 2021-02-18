@@ -632,6 +632,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		if (gettype($project['event-translations']) == 'array') {
 			$this->translateEventNames($response, $project['event-translations']);
 		}
+		
+		// carl_log('data after translations applied: ' . print_r($response, true));
 
 		$this->prepareImportData($response, $recordIdFieldName, $project['record-id-prefix']);
 
@@ -1025,6 +1027,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				}
 			}
 		}
+		
+		// carl_log("translations built, \$project: " . print_r($project, true));
 	}
 	
 	private function getEdocInfo($doc_id) {
@@ -1082,6 +1086,64 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$form_name = substr($form_name, 0, 50);
 		while (substr($form_name, -1) == "_") $form_name = substr($form_name, 0, -1);
 		return $form_name;
+	}
+
+	public function importTranslationsFile() {
+		// this function returns true (when successful) or a string error message
+		
+		$project_api_key = $_POST['project-api-key'];
+		$server_url = $_POST['server-url'];
+		$server_type = $_POST['server-type'];
+		$uploaded_filepath = $_FILES['attach-file-1']['tmp_name'];
+		
+		// validate project_api_key
+		$found_forbidden_char = preg_match('[^\dABCDEF]', $project_api_key);
+		if ($found_forbidden_char) {
+			return "Project API keys may only contain hexadecimal digits.";
+		}
+		
+		// validate server_type
+		if ($server_type != 'import' and $server_type != 'export') {
+			return "Server type '$server_type' not recognized.";
+		}
+		
+		// check for file error / 0 size
+		if ($_FILES['attach-file-1']['error'] != '0' or $_FILES['attach-file-1']['size'] == '0') {
+			return "There was an issue uploading the file to the server.";
+		}
+		
+		// find the target server
+		$server_settings_key = $server_type == 'import' ? 'servers' : 'export-servers';
+		$servers = $this->getSubSettings($server_settings_key);
+		
+		foreach ($servers as $server) {
+			if ($server['redcap-url'] == $server_url) {
+				$target_server = $server;
+				break;
+			}
+		}
+		if (empty($target_server)) {
+			return "Couldn't find server in settings with URL: '$server_url'.";
+		}
+		
+		// find target project in target server
+		foreach($server['projects'] as $project) {
+			if ($project['api-key'] == $project_api_key) {
+				$target_project = $project;
+			}
+		}
+		if (empty($target_project)) {
+			return "Couldn't find project in server settings with API key: '$project_api_key'.";
+		}
+		
+		$translation_matrix = [];
+		if ($uploaded_csv = fopen($uploaded_filepath)) {
+			while ($csv = fgetcsv($uploaded_csv)) {
+				$translation_matrix[] = $csv;
+			}
+		} else {
+			return "Couldn't open the uploaded file.";
+		}
 	}
 }
 

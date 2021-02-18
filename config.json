@@ -1,7 +1,7 @@
 {
 	"name": "API Sync",
 	"namespace": "Vanderbilt\\APISyncExternalModule",
-	"framework-version": 2,
+	"framework-version": 5,
 	"description": "Automates exporting/importing to/from remote REDCap servers via the API.  The Data Dictionaries for the local and remote projects are expected to be either identical or compatible.  This module could easily be expanded to support additional scenarios (like automatically syncing the data dictionary as well).",
 	"authors": [
 		{
@@ -93,6 +93,18 @@
 							"key": "export-record-id-prefix",
 							"name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'><b>Record ID Prefix</b> - Optional, but highly recommend if data is coming into the destination project from other sources.  This prefix will be prepended to all exported records ids to ensure that they're unique on the destination.</div>",
 							"type": "text"
+						},
+						{
+							"key": "export-form-translations",
+							"name": "JSON matrix containing form name tranlsations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+							"type": "text",
+							"hidden": true
+						},
+						{
+							"key": "export-event-translations",
+							"name": "JSON matrix containing event name tranlsations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+							"type": "text",
+							"hidden": true
 						}
 					]
 				}
@@ -152,13 +164,15 @@
 						},
 						{
 							"key": "form-translations",
-							"name": "Upload form translations file",
-							"type": "file"
+							"name": "JSON matrix containing form name tranlsations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+							"type": "text",
+							"hidden": true
 						},
 						{
 							"key": "event-translations",
-							"name": "Upload event translations file",
-							"type": "file"
+							"name": "JSON matrix containing event name tranlsations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+							"type": "text",
+							"hidden": true
 						}
 					]
 				}
@@ -171,6 +185,12 @@
 				"name": "API Sync",
 				"icon": "databases_arrow",
 				"url": "api-sync.php",
+				"show-header-and-footer": true
+			},
+			{
+				"name": "Configure Translations",
+				"icon": "databases_arrow",
+				"url": "config_translations.php",
 				"show-header-and-footer": true
 			}
 		]
