@@ -1,12 +1,9 @@
-
-<!-- Bootstrap latest compiled and minified JavaScript -->
-<!-- <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script> -->
-
 <?php
 
 carl_log("config_translations.php GET: " . print_r($_GET, true));
 carl_log("config_translations.php POST: " . print_r($_POST, true));
 carl_log("config_translations.php FILES: " . print_r($_FILES, true));
+
 if (isset($_POST['project-api-key']) and isset($_POST['server-url'])) {
 	$import_error_message = $module->importTranslationsFile();
 }
@@ -65,7 +62,7 @@ function printProjectCard($project_info) {
 			<button type='button' class='btn btn-outline-primary btn-sm'>+ Column</button>
 			<button type='button' class='btn btn-outline-primary btn-sm' disabled>- Remove</button>
 			<button type='button' class='btn btn-outline-info btn-sm save-btn mx-3' disabled>Save</button>
-			<button type='button' class='btn btn-outline-info btn-sm'>Export</button>
+			<button type='button' class='btn btn-outline-info btn-sm export-btn'>Export</button>
 			<button type='button' class='btn btn-outline-info btn-sm import-btn' data-translation-type='form'>Import</button>
 		</div>
 		<div class='card-body'>
@@ -84,7 +81,7 @@ function printProjectCard($project_info) {
 			<button type='button' class='btn btn-outline-primary btn-sm'>+ Column</button>
 			<button type='button' class='btn btn-outline-primary btn-sm' disabled>- Remove</button>
 			<button type='button' class='btn btn-outline-info btn-sm save-btn mx-3' disabled>Save</button>
-			<button type='button' class='btn btn-outline-info btn-sm'>Export</button>
+			<button type='button' class='btn btn-outline-info btn-sm export-btn'>Export</button>
 			<button type='button' class='btn btn-outline-info btn-sm import-btn' data-translation-type='event'>Import</button>
 		</div>
 		<div class='card-body'>

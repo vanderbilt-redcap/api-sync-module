@@ -33,6 +33,31 @@ $(document).ready(function() {
 		$("#import-translations").modal("show");
 	});
 
+	// export translations from table
+	$('body').on('click', '.export-btn', function(event) {
+		// write csv_contents string using table contents
+		var tbody = $(this).parent().next().find('.translations-tbl > tbody');
+		var lines = [];
+		$(tbody).children('tr').each(function(i, tr) {
+			var entries = [];
+			$(tr).find('td > div').each(function(j, div) {
+				entries.push($(div).text().trim());
+			});
+			lines.push(entries.join(', '));
+		});
+		var csv_contents = lines.join('\r\n');
+		
+		// create temporary anchor element to download file to user
+		var a = $("<a style='display: none;'/>");
+		var url = window.URL.createObjectURL(new Blob([csv_contents], {type: "data:text/csv;charset=utf-8"}));
+		a.attr("href", url);
+		a.attr("download", 'translations.csv');
+		$("body").append(a);
+		a[0].click();
+		window.URL.revokeObjectURL(url);
+		a.remove();
+	});
+
 	// change display name in file upload input element
 	$('body').on('change', ".custom-file-input", function() {		// attach file (and maybe add input)
 		var fileName = $(this).val().split('\\').pop()
