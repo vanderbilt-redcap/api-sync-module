@@ -1156,8 +1156,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			return "Couldn't open the uploaded file.";
 		}
 		
-		if (empty($translation_matrix)) {
-			"Couldn't parse uploaded CSV file into a valid, non-empty translation matrix.";
+		if (empty($translation_matrix) or $csv_field_count < 2) {
+			"Couldn't parse uploaded CSV file into a valid translation matrix.";
 		}
 		
 		// save translations to appropriate setting key/index

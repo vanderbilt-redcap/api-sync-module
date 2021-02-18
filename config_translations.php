@@ -14,6 +14,42 @@ if (isset($_POST['project-api-key']) and isset($_POST['server-url'])) {
 $export_servers = $module->getSubSettings('export-servers');
 $import_servers = $module->getSubSettings('servers');
 
+function printTranslationsTable($translations = [], $type) {
+	$row_count = count($translations);
+	if (!empty($row_count)) {
+		$column_count = count($translations[0]);
+	}
+	
+	?>
+	<h4><?= ucfirst($type) ?> Translations Table</h4>
+	<table class='table translations-tbl'>
+		<thead>
+			<tr>
+				<th>Local <?= ucfirst($type) ?> Name</th>
+				<?php
+				if (empty($column_count)) {
+					echo "<th>Translated Name #1</th>";
+				} else {
+					for ($i = 1; $i <= ($column_count - 1); $i++) {
+						echo "<th>Translated Name #$i</th>";
+					}
+				}
+				?>
+			</tr>
+		</thead>
+		<tbody>
+			<?php foreach($translations as $row) {
+				echo "<tr>";
+				foreach($row as $name) {
+					echo "<td><div contenteditable>$name</div></td>";
+				}
+				echo "</tr>";
+			}?>
+		</tbody>
+	</table>
+	<?php
+}
+
 function printProjectCard($project_info) {
 	?>
 	<div class='card'>
@@ -33,25 +69,14 @@ function printProjectCard($project_info) {
 			<button type='button' class='btn btn-outline-info btn-sm import-btn' data-translation-type='form'>Import</button>
 		</div>
 		<div class='card-body'>
-			<h4>Form Translations Table</h4>
-			<table class='table translations-tbl'>
-				<thead>
-					<tr>
-						<th>Local Form Name</th>
-						<th>Translated Name #1</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr>
-						<td><div contenteditable>Instrument A</div></td>
-						<td><div contenteditable>My Instrument</div></td>
-					</tr>
-					<tr>
-						<td><div contenteditable>Instrument A</div></td>
-						<td><div contenteditable>My Instrument</div></td>
-					</tr>
-				</tbody>
-			</table>
+			<?php
+			if ($project_info['server-type'] == 'export') {
+				$translations = json_decode($project_info['export-form-translations']);
+			} else {
+				$translations = json_decode($project_info['form-translations']);
+			}
+			printTranslationsTable($translations, 'form');
+			?>
 		</div>
 		
 		<div class='table-controls ml-3'>
@@ -63,17 +88,14 @@ function printProjectCard($project_info) {
 			<button type='button' class='btn btn-outline-info btn-sm import-btn' data-translation-type='event'>Import</button>
 		</div>
 		<div class='card-body'>
-			<h4>Event Translations Table</h4>
-			<table class='table translations-tbl'>
-				<thead>
-					<tr>
-						<th>Local Form Name</th>
-						<th>Translated Name #1</th>
-					</tr>
-				</thead>
-				<tbody>
-				</tbody>
-			</table>
+			<?php
+			if ($project_info['server-type'] == 'export') {
+				$translations = json_decode($project_info['export-event-translations']);
+			} else {
+				$translations = json_decode($project_info['event-translations']);
+			}
+			printTranslationsTable($translations, 'event');
+			?>
 		</div>
 	</div>
 	<br>
