@@ -1089,11 +1089,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	public function importTranslationsFile() {
-		// this function returns true (when successful) or a string error message
+		// this function returns null (when successful) or a string error message
 		
 		$project_api_key = $_POST['project-api-key'];
 		$server_url = $_POST['server-url'];
 		$server_type = $_POST['server-type'];
+		$translations_type = $_POST['translations-type'];
 		$uploaded_filepath = $_FILES['attach-file-1']['tmp_name'];
 		
 		// validate project_api_key
@@ -1116,9 +1117,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$server_settings_key = $server_type == 'import' ? 'servers' : 'export-servers';
 		$servers = $this->getSubSettings($server_settings_key);
 		
-		foreach ($servers as $server) {
+		foreach ($servers as $server_index => $server) {
 			if ($server['redcap-url'] == $server_url) {
 				$target_server = $server;
+				$target_server_index = $server_index;
 				break;
 			}
 		}
@@ -1127,23 +1129,47 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 		
 		// find target project in target server
-		foreach($server['projects'] as $project) {
+		foreach($target_server['projects'] as $project_index => $project) {
 			if ($project['api-key'] == $project_api_key) {
-				$target_project = $project;
+				$target_project_index = $project_index;
+				break;
 			}
 		}
-		if (empty($target_project)) {
+		if (!isset($target_project_index)) {
 			return "Couldn't find project in server settings with API key: '$project_api_key'.";
 		}
 		
+		// read csv lines into translation matrix from file
 		$translation_matrix = [];
-		if ($uploaded_csv = fopen($uploaded_filepath)) {
+		if ($uploaded_csv = fopen($uploaded_filepath, 'r')) {
 			while ($csv = fgetcsv($uploaded_csv)) {
+				if (!$csv_field_count) {
+					$csv_field_count = count($csv);
+				} else {
+					if ($csv_field_count != count($csv)) {
+						return "Invalid CSV file contents -- each row should contain the same amount of columns.";
+					}
+				}
 				$translation_matrix[] = $csv;
 			}
 		} else {
 			return "Couldn't open the uploaded file.";
 		}
+		
+		if (empty($translation_matrix)) {
+			"Couldn't parse uploaded CSV file into a valid, non-empty translation matrix.";
+		}
+		
+		// save translations to appropriate setting key/index
+		$serial_translations = json_encode($translation_matrix);
+		if ($server_type == 'export') {
+			$translations_key = "export-$translations_type-translations";
+		} else {
+			$translations_key = "$translations_type-translations";
+		}
+		$current_translations = $this->getProjectSetting($translations_key);
+		$current_translations[$target_server_index][$target_project_index] = $serial_translations;
+		$this->setProjectSetting($translations_key, $current_translations);
 	}
 }
 

@@ -7,9 +7,8 @@
 carl_log("config_translations.php GET: " . print_r($_GET, true));
 carl_log("config_translations.php POST: " . print_r($_POST, true));
 carl_log("config_translations.php FILES: " . print_r($_FILES, true));
-
 if (isset($_POST['project-api-key']) and isset($_POST['server-url'])) {
-	$module->importTranslationsFile();
+	$import_error_message = $module->importTranslationsFile();
 }
 
 $export_servers = $module->getSubSettings('export-servers');
@@ -31,7 +30,7 @@ function printProjectCard($project_info) {
 			<button type='button' class='btn btn-outline-primary btn-sm' disabled>- Remove</button>
 			<button type='button' class='btn btn-outline-info btn-sm save-btn mx-3' disabled>Save</button>
 			<button type='button' class='btn btn-outline-info btn-sm'>Export</button>
-			<button type='button' class='btn btn-outline-info btn-sm import-btn'>Import</button>
+			<button type='button' class='btn btn-outline-info btn-sm import-btn' data-translation-type='form'>Import</button>
 		</div>
 		<div class='card-body'>
 			<h4>Form Translations Table</h4>
@@ -61,7 +60,7 @@ function printProjectCard($project_info) {
 			<button type='button' class='btn btn-outline-primary btn-sm' disabled>- Remove</button>
 			<button type='button' class='btn btn-outline-info btn-sm save-btn mx-3' disabled>Save</button>
 			<button type='button' class='btn btn-outline-info btn-sm'>Export</button>
-			<button type='button' class='btn btn-outline-info btn-sm import-btn'>Import</button>
+			<button type='button' class='btn btn-outline-info btn-sm import-btn' data-translation-type='event'>Import</button>
 		</div>
 		<div class='card-body'>
 			<h4>Event Translations Table</h4>
@@ -73,14 +72,6 @@ function printProjectCard($project_info) {
 					</tr>
 				</thead>
 				<tbody>
-					<tr>
-						<td><div contenteditable>Instrument A</div></td>
-						<td><div contenteditable>My Instrument</div></td>
-					</tr>
-					<tr>
-						<td><div contenteditable>Instrument A</div></td>
-						<td><div contenteditable>My Instrument</div></td>
-					</tr>
 				</tbody>
 			</table>
 		</div>
@@ -122,6 +113,7 @@ echo "<pre>import_servers:\n" . print_r($import_servers, true) . "</pre>";
 							<input type='hidden' name='project-api-key' id='project-api-key'>
 							<input type='hidden' name='server-url' id='server-url'>
 							<input type='hidden' name='server-type' id='server-type'>
+							<input type='hidden' name='translations-type' id='translations-type'>
 							<input type="file" class="custom-file-input" id="attach-file-1" name="attach-file-1" aria-describedby="attach-file-addon-1">
 							<label class="custom-file-label" for="attach-file-1">Choose file</label>
 						</div>
@@ -139,6 +131,9 @@ echo "<pre>import_servers:\n" . print_r($import_servers, true) . "</pre>";
 	</div>
 </div>
 <script type='text/javascript'>
-	api_sync_module = {css_url: '<?= $module->getUrl("css/config_translations.css") ?>'}
+	api_sync_module = {
+		css_url: '<?= $module->getUrl("css/config_translations.css") ?>',
+		import_error_message: "<?= $import_error_message ?>"
+	}
 </script>
 <script type='text/javascript' src='<?= $module->getUrl('js/config_translations.js') ?>'></script>
