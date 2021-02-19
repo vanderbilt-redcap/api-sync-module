@@ -1,6 +1,10 @@
 $(document).ready(function() {
-	api_sync_module.addTableRow = function() {
-		
+	api_sync_module.rename_columns = function(table) {
+		$(table).find('th').each(function(i, th) {
+			if (i != 0) {
+				$(th).text('Translated Name #' + i);
+			}
+		});
 	}
 
 	// append stylesheet to head element of DOM
@@ -48,6 +52,26 @@ $(document).ready(function() {
 		event.stopPropagation();
 	});
 
+	// add row or col
+	$('body').on('click', '.add-row-btn', function(event) {
+		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
+		var cols = $(tbl).find('thead th').length;
+		var new_row = "<tr>";
+		for (i = 0; i < cols; i++) {
+			new_row += "<td><div contenteditable></div></td>";
+		}
+		new_row += "</tr>";
+		$(tbl).find('tbody').append(new_row);
+	});
+	$('body').on('click', '.add-col-btn', function(event) {
+		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
+		$(tbl).find('thead tr').append('<th></th>');
+		$(tbl).find('tbody tr').each(function(i, row) {
+			$(row).append("<td><div contenteditable></div></td>");
+		});
+		api_sync_module.rename_columns(tbl);
+	});
+
 	// remove highlighted table row or column
 	$('body').on('click', '.remove-btn', function(event) {
 		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
@@ -61,11 +85,7 @@ $(document).ready(function() {
 		
 		// rename column headings
 		if (remove_mode == 'col') {
-			$(tbl).find('th').each(function(i, th) {
-				if (i != 0) {
-					$(th).text('Translated Name #' + i);
-				}
-			});
+			api_sync_module.rename_columns(tbl);
 		}
 	});
 
