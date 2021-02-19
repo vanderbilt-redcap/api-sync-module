@@ -1,11 +1,24 @@
 <?php
 
-carl_log("config_translations.php GET: " . print_r($_GET, true));
+// carl_log("config_translations.php GET: " . print_r($_GET, true));
 carl_log("config_translations.php POST: " . print_r($_POST, true));
-carl_log("config_translations.php FILES: " . print_r($_FILES, true));
+// carl_log("config_translations.php FILES: " . print_r($_FILES, true));
 
 if (isset($_POST['project-api-key']) and isset($_POST['server-url'])) {
-	$import_error_message = $module->importTranslationsFile();
+	if (isset($_POST['table_saved'])) {
+		$table_saved_error_message = $module->importTranslationsTable();
+		
+		header('Content-type: application/json');
+		$response = new \stdClass();
+		$response->success = true;
+		if (empty($table_saved_error_message)) {
+			$response->success = false;
+			$response->error = $table_saved_error_message;
+		}
+		exit(json_encode($response));
+	} else {
+		$import_error_message = $module->importTranslationsFile();
+	}
 }
 
 $export_servers = $module->getSubSettings('export-servers');
@@ -152,7 +165,9 @@ echo "<pre>import_servers:\n" . print_r($import_servers, true) . "</pre>";
 <script type='text/javascript'>
 	api_sync_module = {
 		css_url: '<?= $module->getUrl("css/config_translations.css") ?>',
-		import_error_message: "<?= $import_error_message ?>"
+		import_error_message: "<?= $import_error_message ?>",
+		table_saved_error_message: "<?= $table_saved_error_message ?>",
+		pid: "<?= $module->getProjectId() ?>"
 	}
 </script>
 <script type='text/javascript' src='<?= $module->getUrl('js/config_translations.js') ?>'></script>

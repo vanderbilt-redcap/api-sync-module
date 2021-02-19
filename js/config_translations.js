@@ -6,7 +6,21 @@ $(document).ready(function() {
 			}
 		});
 	}
-
+	
+	api_sync_module.serialize_table = function(table) {
+		// return table contents as CSV string
+		var tbody = $(table).find('tbody');
+		var lines = [];
+		$(tbody).children('tr').each(function(i, tr) {
+			var entries = [];
+			$(tr).find('td > div').each(function(j, div) {
+				entries.push($(div).text().trim());
+			});
+			lines.push(entries.join(', '));
+		});
+		return lines.join('\r\n');
+	}
+	
 	// append stylesheet to head element of DOM
 	$('head').append("<link rel='stylesheet' type='text/css' href='" + api_sync_module.css_url + "'/>");
 	
@@ -15,14 +29,17 @@ $(document).ready(function() {
 		window.history.replaceState(null, null, window.location.href);
 	}
 	
-	// show import error
+	// show applicable error
 	if (api_sync_module.import_error_message != '') {
 		alert(api_sync_module.import_error_message);
+	}
+	if (api_sync_module.table_saved_error_message != '') {
+		alert(api_sync_module.table_saved_error_message);
 	}
 
 	// // EVENT HANDLING
 	// highlight clicked rows/cols
-	$('body').on('click', null, function(event) {
+	$('body').on('click', null, function() {
 		// remove existing highlights
 		$('tr, td, th').removeClass('highlight');
 		$('.remove-btn').attr('disabled', true);
@@ -53,7 +70,7 @@ $(document).ready(function() {
 	});
 
 	// add row or col
-	$('body').on('click', '.add-row-btn', function(event) {
+	$('body').on('click', '.add-row-btn', function() {
 		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
 		var cols = $(tbl).find('thead th').length;
 		var new_row = "<tr>";
@@ -63,7 +80,7 @@ $(document).ready(function() {
 		new_row += "</tr>";
 		$(tbl).find('tbody').append(new_row);
 	});
-	$('body').on('click', '.add-col-btn', function(event) {
+	$('body').on('click', '.add-col-btn', function() {
 		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
 		$(tbl).find('thead tr').append('<th></th>');
 		$(tbl).find('tbody tr').each(function(i, row) {
@@ -73,7 +90,7 @@ $(document).ready(function() {
 	});
 
 	// remove highlighted table row or column
-	$('body').on('click', '.remove-btn', function(event) {
+	$('body').on('click', '.remove-btn', function() {
 		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
 		var rows = $(tbl).find('tbody tr').length;
 		var cols = $(tbl).find('thead th').length;
@@ -88,9 +105,50 @@ $(document).ready(function() {
 			api_sync_module.rename_columns(tbl);
 		}
 	});
+	
+	$('body').on('click', '.save-btn', function() {
+		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
+		var tbl_csv = api_sync_module.serialize_table(tbl);
+		var card = $(this).closest('div.card');
+		$(this).attr('disabled', true);
+		$.ajax({
+			type: 'POST',
+			url: '?prefix=api_sync&page=config_translations&pid=' + api_sync_module.pid,
+			data: {
+				table_saved: true,
+				translations: tbl_csv,
+				'translations-type': $(card).find('.import-btn').attr('data-translation-type'),
+				'project-api-key': $(card).find('span.project-api-key').text(),
+				'server-url': (card).find('span.server-url').text(),
+				'server-type': $(card).find('span.server-type').text()
+			}
+		});
+	});
+	
+	// enable save button when translations table changes
+	$('body').on('input', '.translations-tbl td', function() {
+		$(this).closest('.card-body').prev('div.table-controls').find('.save-btn').attr('disabled', false);
+	});
+	
+	// export translations from table
+	$('body').on('click', '.export-btn', function() {
+		// write csv_contents string using table contents
+		var tbl = $(this).parent().next().find('.translations-tbl');
+		var csv_contents = api_sync_module.serialize_table(tbl);
+		
+		// create temporary anchor element to download file to user
+		var a = $("<a style='display: none;'/>");
+		var url = window.URL.createObjectURL(new Blob([csv_contents], {type: "data:text/csv;charset=utf-8"}));
+		a.attr("href", url);
+		a.attr("download", 'translations.csv');
+		$("body").append(a);
+		a[0].click();
+		window.URL.revokeObjectURL(url);
+		a.remove();
+	});
 
 	// show import translations file modal
-	$('body').on('click', '.import-btn', function(event) {
+	$('body').on('click', '.import-btn', function() {
 		// put project api key and server url in form
 		var card = $(this).closest('div.card');
 		var proj_api_key = $(card).find('span.project-api-key').text();
@@ -104,31 +162,6 @@ $(document).ready(function() {
 		$("input#translations-type").val(translations_type);
 		
 		$("#import-translations").modal("show");
-	});
-
-	// export translations from table
-	$('body').on('click', '.export-btn', function(event) {
-		// write csv_contents string using table contents
-		var tbody = $(this).parent().next().find('.translations-tbl > tbody');
-		var lines = [];
-		$(tbody).children('tr').each(function(i, tr) {
-			var entries = [];
-			$(tr).find('td > div').each(function(j, div) {
-				entries.push($(div).text().trim());
-			});
-			lines.push(entries.join(', '));
-		});
-		var csv_contents = lines.join('\r\n');
-		
-		// create temporary anchor element to download file to user
-		var a = $("<a style='display: none;'/>");
-		var url = window.URL.createObjectURL(new Blob([csv_contents], {type: "data:text/csv;charset=utf-8"}));
-		a.attr("href", url);
-		a.attr("download", 'translations.csv');
-		$("body").append(a);
-		a[0].click();
-		window.URL.revokeObjectURL(url);
-		a.remove();
 	});
 
 	// change display name in file upload input element

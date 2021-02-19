@@ -1090,12 +1090,66 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 	public function importTranslationsFile() {
 		// this function returns null (when successful) or a string error message
+		$validation = $this->validateImport();
+		if (gettype($validation) == 'string') {
+			// return error string
+			return $validation;
+		}
 		
+		// read csv lines into translation matrix from file
+		$uploaded_filepath = $_FILES['attach-file-1']['tmp_name'];
+		$translation_matrix = [];
+		if ($uploaded_csv = fopen($uploaded_filepath, 'r')) {
+			while ($csv = fgetcsv($uploaded_csv)) {
+				if (!$csv_field_count) {
+					$csv_field_count = count($csv);
+				} else {
+					if ($csv_field_count != count($csv)) {
+						return "Invalid CSV file contents -- each row should contain the same amount of columns.";
+					}
+				}
+				$translation_matrix[] = $csv;
+			}
+		} else {
+			return "Couldn't open the uploaded file.";
+		}
+		
+		if (empty($translation_matrix) or $csv_field_count < 2) {
+			"Couldn't parse uploaded CSV file into a valid translation matrix.";
+		}
+		
+		// save translations to appropriate setting key/index
+		$this->saveTranslations($translation_matrix, $validation['target_server_index'], $validation['target_project_index']);
+	}
+
+	public function importTranslationsTable() {
+		carl_log("calling importTranslationsTable");
+		// this function returns null (when successful) or a string error message
+		$validation = $this->validateImport();
+		if (gettype($validation) == 'string') {
+			carl_log("validation: " . print_r($validation, true));
+			return $validation;
+		}
+		
+		// escaping here causes issues with detecting newlines in the preg_split call below
+		// $translations = db_escape($_POST['translations']);
+		$translations = $_POST['translations'];
+		
+		$translation_matrix = [];
+		foreach(preg_split("/((\r?\n)|(\r\n?))/", $translations) as $line){
+			$translation_matrix[] = str_getcsv(db_escape($line));
+		}
+		carl_log("importTranslationsTable translation_matrix: " . print_r($translation_matrix, true));
+		
+		// save translations to appropriate setting key/index
+		$this->saveTranslations($translation_matrix, $validation['target_server_index'], $validation['target_project_index']);
+	}
+	
+	private function validateImport() {
+		// returns an error string or, settings valid, an array with target project/server information
 		$project_api_key = $_POST['project-api-key'];
 		$server_url = $_POST['server-url'];
 		$server_type = $_POST['server-type'];
-		$translations_type = $_POST['translations-type'];
-		$uploaded_filepath = $_FILES['attach-file-1']['tmp_name'];
 		
 		// validate project_api_key
 		$found_forbidden_char = preg_match('[^\dABCDEF]', $project_api_key);
@@ -1108,9 +1162,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			return "Server type '$server_type' not recognized.";
 		}
 		
-		// check for file error / 0 size
-		if ($_FILES['attach-file-1']['error'] != '0' or $_FILES['attach-file-1']['size'] == '0') {
-			return "There was an issue uploading the file to the server.";
+		if (!isset($_POST['table_saved'])) {
+			// check for file error / 0 size
+			if ($_FILES['attach-file-1']['error'] != '0' or $_FILES['attach-file-1']['size'] == '0') {
+				return "There was an issue uploading the file to the server.";
+			}
 		}
 		
 		// find the target server
@@ -1139,29 +1195,17 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			return "Couldn't find project in server settings with API key: '$project_api_key'.";
 		}
 		
-		// read csv lines into translation matrix from file
-		$translation_matrix = [];
-		if ($uploaded_csv = fopen($uploaded_filepath, 'r')) {
-			while ($csv = fgetcsv($uploaded_csv)) {
-				if (!$csv_field_count) {
-					$csv_field_count = count($csv);
-				} else {
-					if ($csv_field_count != count($csv)) {
-						return "Invalid CSV file contents -- each row should contain the same amount of columns.";
-					}
-				}
-				$translation_matrix[] = $csv;
-			}
-		} else {
-			return "Couldn't open the uploaded file.";
-		}
-		
-		if (empty($translation_matrix) or $csv_field_count < 2) {
-			"Couldn't parse uploaded CSV file into a valid translation matrix.";
-		}
-		
+		return [
+			'target_server' => $target_server,
+			'target_server_index' => $target_server_index,
+			'target_project_index' => $target_project_index
+		];
+	}
+	
+	private function saveTranslations($translation_matrix, $target_server_index, $target_project_index) {
 		// save translations to appropriate setting key/index
 		$serial_translations = json_encode($translation_matrix);
+		$translations_type = $_POST['translations-type'];
 		if ($server_type == 'export') {
 			$translations_key = "export-$translations_type-translations";
 		} else {
