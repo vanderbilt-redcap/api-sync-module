@@ -5,14 +5,36 @@ $(document).ready(function() {
 
 	// append stylesheet to head element of DOM
 	$('head').append("<link rel='stylesheet' type='text/css' href='" + api_sync_module.css_url + "'/>");
+	
+	// prevent form resubmission
+	if (window.history.replaceState) {
+		window.history.replaceState(null, null, window.location.href);
+	}
+	
+	// show import error
+	if (api_sync_module.import_error_message != '') {
+		alert(api_sync_module.import_error_message);
+	}
 
 	// // EVENT HANDLING
-	// highlight clicked rows
-	$('.translations-tbl').on('click', '.translations-tbl td', function(event) {
-		var clicked_row = $(this).find('tr');
-		$('tr').removeClass('highlight');
+	// highlight clicked rows/cols
+	$('body').on('click', '.translations-tbl td', function(event) {
+		// remove existing highlights
+		$('tr, td, th').removeClass('highlight');
+		
+		var clicked_row = $(this).closest('tr');
 		$(clicked_row).addClass('highlight');
 		console.log('clicked_row', clicked_row);
+	});
+	$('body').on('click', '.translations-tbl th', function(event) {
+		// remove existing highlights
+		$('tr, td, th').removeClass('highlight');
+		
+		$(this).addClass('highlight');
+		var col_index = $(this).index();
+		$(this).closest('.translations-tbl').find('td:nth-child(' + (col_index + 1) + ')').each(function(i, td) {
+			$(td).addClass('highlight');
+		});
 	});
 
 	// show import translations file modal
@@ -86,12 +108,4 @@ $(document).ready(function() {
 	$('body').on('click', "#import-submit", function() {
 		$("form#translation-file").submit();
 	});
-
-	if (window.history.replaceState) {
-		window.history.replaceState(null, null, window.location.href);
-	}
-	
-	if (api_sync_module.import_error_message != '') {
-		alert(api_sync_module.import_error_message);
-	}
 });
