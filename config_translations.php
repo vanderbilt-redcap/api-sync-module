@@ -60,7 +60,7 @@ function printProjectCard($project_info) {
 		<div class='table-controls ml-3'>
 			<button type='button' class='btn btn-outline-primary btn-sm'>+ Row</button>
 			<button type='button' class='btn btn-outline-primary btn-sm'>+ Column</button>
-			<button type='button' class='btn btn-outline-primary btn-sm' disabled>- Remove</button>
+			<button type='button' class='btn btn-outline-primary btn-sm remove-btn' disabled>- Remove</button>
 			<button type='button' class='btn btn-outline-info btn-sm save-btn mx-3' disabled>Save</button>
 			<button type='button' class='btn btn-outline-info btn-sm export-btn'>Export</button>
 			<button type='button' class='btn btn-outline-info btn-sm import-btn' data-translation-type='form'>Import</button>
@@ -79,7 +79,7 @@ function printProjectCard($project_info) {
 		<div class='table-controls ml-3'>
 			<button type='button' class='btn btn-outline-primary btn-sm'>+ Row</button>
 			<button type='button' class='btn btn-outline-primary btn-sm'>+ Column</button>
-			<button type='button' class='btn btn-outline-primary btn-sm' disabled>- Remove</button>
+			<button type='button' class='btn btn-outline-primary btn-sm remove-btn' disabled>- Remove</button>
 			<button type='button' class='btn btn-outline-info btn-sm save-btn mx-3' disabled>Save</button>
 			<button type='button' class='btn btn-outline-info btn-sm export-btn'>Export</button>
 			<button type='button' class='btn btn-outline-info btn-sm import-btn' data-translation-type='event'>Import</button>

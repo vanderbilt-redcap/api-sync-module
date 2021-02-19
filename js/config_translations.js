@@ -18,23 +18,55 @@ $(document).ready(function() {
 
 	// // EVENT HANDLING
 	// highlight clicked rows/cols
+	$('body').on('click', null, function(event) {
+		// remove existing highlights
+		$('tr, td, th').removeClass('highlight');
+		$('.remove-btn').attr('disabled', true);
+	});
 	$('body').on('click', '.translations-tbl td', function(event) {
 		// remove existing highlights
 		$('tr, td, th').removeClass('highlight');
+		$('.remove-btn').attr('disabled', true);
 		
 		var clicked_row = $(this).closest('tr');
 		$(clicked_row).addClass('highlight');
-		console.log('clicked_row', clicked_row);
+		
+		$(this).closest('.card-body').prev('div.table-controls').find('.remove-btn').attr('disabled', false);
+		event.stopPropagation();
 	});
 	$('body').on('click', '.translations-tbl th', function(event) {
 		// remove existing highlights
 		$('tr, td, th').removeClass('highlight');
+		$('.remove-btn').attr('disabled', true);
 		
 		$(this).addClass('highlight');
 		var col_index = $(this).index();
 		$(this).closest('.translations-tbl').find('td:nth-child(' + (col_index + 1) + ')').each(function(i, td) {
 			$(td).addClass('highlight');
 		});
+		$(this).closest('.card-body').prev('div.table-controls').find('.remove-btn').attr('disabled', false);
+		event.stopPropagation();
+	});
+
+	// remove highlighted table row or column
+	$('body').on('click', '.remove-btn', function(event) {
+		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
+		var rows = $(tbl).find('tbody tr').length;
+		var cols = $(tbl).find('thead th').length;
+		var remove_mode = $('th.highlight').length > 0 ? 'col' : 'row';
+		
+		if ((rows > 0 && remove_mode == 'row') || (cols > 2 && remove_mode == 'col')) {
+			$('.highlight').remove();
+		}
+		
+		// rename column headings
+		if (remove_mode == 'col') {
+			$(tbl).find('th').each(function(i, th) {
+				if (i != 0) {
+					$(th).text('Translated Name #' + i);
+				}
+			});
+		}
 	});
 
 	// show import translations file modal
@@ -45,7 +77,6 @@ $(document).ready(function() {
 		var server_url = $(card).find('span.server-url').text();
 		var server_type = $(card).find('span.server-type').text();
 		var translations_type = $(this).attr('data-translation-type');
-		console.log('translations_type', translations_type);
 		
 		$("input#project-api-key").val(proj_api_key);
 		$("input#server-url").val(server_url);
