@@ -110,6 +110,7 @@ $(document).ready(function() {
 	});
 	
 	$('body').on('click', '.save-btn', function() {
+		var save_btn = this;
 		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
 		var tbl_csv = api_sync_module.serialize_table(tbl);
 		var card = $(this).closest('div.card');
@@ -134,7 +135,7 @@ $(document).ready(function() {
 			},
 			complete: function(response, status) {
 				$(loader).css('display', 'none');
-				$('.save-btn.btn-info').removeClass('btn-info').addClass('btn-outline-info');
+				$(save_btn).removeClass('btn-info').addClass('btn-outline-info');
 			}
 		});
 	});
