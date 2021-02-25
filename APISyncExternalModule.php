@@ -632,8 +632,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		if (gettype($project['event-translations']) == 'array') {
 			$this->translateEventNames($response, $project['event-translations']);
 		}
-		
-		// carl_log('data after translations applied: ' . print_r($response, true));
 
 		$this->prepareImportData($response, $recordIdFieldName, $project['record-id-prefix']);
 
@@ -1027,8 +1025,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				}
 			}
 		}
-		
-		// carl_log("translations built, \$project: " . print_r($project, true));
 	}
 	
 	private function getEdocInfo($doc_id) {
@@ -1123,11 +1119,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	public function importTranslationsTable() {
-		carl_log("calling importTranslationsTable");
 		// this function returns null (when successful) or a string error message
 		$validation = $this->validateImport();
 		if (gettype($validation) == 'string') {
-			carl_log("validation: " . print_r($validation, true));
 			return $validation;
 		}
 		
@@ -1139,7 +1133,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		foreach(preg_split("/((\r?\n)|(\r\n?))/", $translations) as $line){
 			$translation_matrix[] = str_getcsv(db_escape($line));
 		}
-		carl_log("importTranslationsTable translation_matrix: " . print_r($translation_matrix, true));
 		
 		// save translations to appropriate setting key/index
 		$this->saveTranslations($translation_matrix, $validation['target_server_index'], $validation['target_project_index']);

@@ -42,30 +42,31 @@ $(document).ready(function() {
 	$('body').on('click', null, function() {
 		// remove existing highlights
 		$('tr, td, th').removeClass('highlight');
-		$('.remove-btn').attr('disabled', true);
+		$('.remove-btn.btn-primary').removeClass('btn-primary').addClass('btn-outline-primary');
 	});
 	$('body').on('click', '.translations-tbl td', function(event) {
 		// remove existing highlights
 		$('tr, td, th').removeClass('highlight');
-		$('.remove-btn').attr('disabled', true);
 		
 		var clicked_row = $(this).closest('tr');
 		$(clicked_row).addClass('highlight');
 		
-		$(this).closest('.card-body').prev('div.table-controls').find('.remove-btn').attr('disabled', false);
+		$('.remove-btn.btn-primary').removeClass('btn-primary').addClass('btn-outline-primary');
+		$(this).closest('.card-body').prev('div.table-controls').find('.remove-btn').removeClass('btn-outline-primary').addClass('btn-primary');
 		event.stopPropagation();
 	});
 	$('body').on('click', '.translations-tbl th', function(event) {
 		// remove existing highlights
 		$('tr, td, th').removeClass('highlight');
-		$('.remove-btn').attr('disabled', true);
 		
 		$(this).addClass('highlight');
 		var col_index = $(this).index();
 		$(this).closest('.translations-tbl').find('td:nth-child(' + (col_index + 1) + ')').each(function(i, td) {
 			$(td).addClass('highlight');
 		});
-		$(this).closest('.card-body').prev('div.table-controls').find('.remove-btn').attr('disabled', false);
+		
+		$('.remove-btn.btn-primary').removeClass('btn-primary').addClass('btn-outline-primary');
+		$(this).closest('.card-body').prev('div.table-controls').find('.remove-btn').removeClass('btn-outline-primary').addClass('btn-primary');
 		event.stopPropagation();
 	});
 
@@ -73,7 +74,7 @@ $(document).ready(function() {
 	$('body').on('click', '.add-row-btn', function() {
 		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
 		var cols = $(tbl).find('thead th').length;
-		var new_row = "<tr>";
+		var new_row = "<tr class='border-bottom'>";
 		for (i = 0; i < cols; i++) {
 			new_row += "<td><div contenteditable></div></td>";
 		}
@@ -98,6 +99,8 @@ $(document).ready(function() {
 		
 		if ((rows > 0 && remove_mode == 'row') || (cols > 2 && remove_mode == 'col')) {
 			$('.highlight').remove();
+			$('.remove-btn').removeClass('btn-outline-primary btn-primary')
+			$('.remove-btn').addClass('btn-outline-primary')
 		}
 		
 		// rename column headings
@@ -110,24 +113,38 @@ $(document).ready(function() {
 		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
 		var tbl_csv = api_sync_module.serialize_table(tbl);
 		var card = $(this).closest('div.card');
-		$(this).attr('disabled', true);
+		
+		// show loader
+		var loader = $(card).find('.loader-container');
+		$(loader).css('display', 'flex');
+		
 		$.ajax({
 			type: 'POST',
 			url: '?prefix=api_sync&page=config_translations&pid=' + api_sync_module.pid,
 			data: {
 				table_saved: true,
 				translations: tbl_csv,
-				'translations-type': $(card).find('.import-btn').attr('data-translation-type'),
+				'translations-type': $(this).attr('data-translation-type'),
 				'project-api-key': $(card).find('span.project-api-key').text(),
 				'server-url': (card).find('span.server-url').text(),
 				'server-type': $(card).find('span.server-type').text()
+			},
+			error: function(response, status, err) {
+				console.log('response', response.responseText);
+				alert("There was an issue saving translations updates: " + err);
+			},
+			complete: function(response, status) {
+				$(loader).css('display', 'none');
+				$('.save-btn.btn-info').removeClass('btn-info').addClass('btn-outline-info');
 			}
 		});
 	});
 	
 	// enable save button when translations table changes
 	$('body').on('input', '.translations-tbl td', function() {
-		$(this).closest('.card-body').prev('div.table-controls').find('.save-btn').attr('disabled', false);
+		var savebtn = $(this).closest('.card-body').prev('div.table-controls').find('.save-btn');
+		$(savebtn).removeClass('btn-outline-info btn-info');
+		$(savebtn).addClass('btn-info');
 	});
 	
 	// export translations from table

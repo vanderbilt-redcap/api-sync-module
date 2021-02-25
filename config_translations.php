@@ -1,20 +1,18 @@
 <?php
 
-// carl_log("config_translations.php GET: " . print_r($_GET, true));
-carl_log("config_translations.php POST: " . print_r($_POST, true));
-// carl_log("config_translations.php FILES: " . print_r($_FILES, true));
-
 if (isset($_POST['project-api-key']) and isset($_POST['server-url'])) {
 	if (isset($_POST['table_saved'])) {
 		$table_saved_error_message = $module->importTranslationsTable();
 		
-		header('Content-type: application/json');
 		$response = new \stdClass();
 		$response->success = true;
-		if (empty($table_saved_error_message)) {
+		if (!empty($table_saved_error_message)) {
 			$response->success = false;
 			$response->error = $table_saved_error_message;
 		}
+		carl_log($response);
+		
+		header('Content-type: application/json');
 		exit(json_encode($response));
 	} else {
 		$import_error_message = $module->importTranslationsFile();
@@ -31,32 +29,42 @@ function printTranslationsTable($translations = [], $type) {
 	}
 	
 	?>
-	<h4><?= ucfirst($type) ?> Translations Table</h4>
-	<table class='table translations-tbl'>
-		<thead>
-			<tr>
-				<th>Local <?= ucfirst($type) ?> Name</th>
-				<?php
-				if (empty($column_count)) {
-					echo "<th>Translated Name #1</th>";
-				} else {
-					for ($i = 1; $i <= ($column_count - 1); $i++) {
-						echo "<th>Translated Name #$i</th>";
+	<div class='table-controls ml-3'>
+		<button type='button' class='btn btn-outline-primary btn-sm add-row-btn'>+ Row</button>
+		<button type='button' class='btn btn-outline-primary btn-sm add-col-btn'>+ Column</button>
+		<button type='button' class='btn btn-outline-primary btn-sm remove-btn'>- Remove</button>
+		<button type='button' class='btn btn-outline-info btn-sm save-btn mx-3' data-translation-type='<?= $type ?>'>Save</button>
+		<button type='button' class='btn btn-outline-info btn-sm export-btn'>Export</button>
+		<button type='button' class='btn btn-outline-info btn-sm import-btn' data-translation-type='<?= $type ?>'>Import</button>
+	</div>
+	<div class='card-body'>
+		<h4><?= ucfirst($type) ?> Translations Table</h4>
+		<table class='table translations-tbl'>
+			<thead>
+				<tr>
+					<th>Local <?= ucfirst($type) ?> Name</th>
+					<?php
+					if (empty($column_count)) {
+						echo "<th>Translated Name #1</th>";
+					} else {
+						for ($i = 1; $i <= ($column_count - 1); $i++) {
+							echo "<th>Translated Name #$i</th>";
+						}
 					}
-				}
-				?>
-			</tr>
-		</thead>
-		<tbody>
-			<?php foreach($translations as $row) {
-				echo "<tr>";
-				foreach($row as $name) {
-					echo "<td><div contenteditable>$name</div></td>";
-				}
-				echo "</tr>";
-			}?>
-		</tbody>
-	</table>
+					?>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach($translations as $row) {
+					echo "<tr class='border-bottom'>";
+					foreach($row as $name) {
+						echo "<td><div contenteditable>$name</div></td>";
+					}
+					echo "</tr>";
+				}?>
+			</tbody>
+		</table>
+	</div>
 	<?php
 }
 
@@ -64,67 +72,40 @@ function printProjectCard($project_info) {
 	?>
 	<div class='card'>
 		<div class='card-title m-3'>
-			<h3 class='pb-1'>Server #<?= $project_info['server-index'] ?> - Project #<?= $project_info['project-index'] ?></h3>
-			<span>API Key: </span><b><span class='project-api-key'><?= $project_info['api-key'] ?></span></b>
-			<br>
+			<h3 class='pb-1'><?= ucfirst($project_info['server-type']) ?> Server #<?= $project_info['server-index'] ?> - Project #<?= $project_info['project-index'] ?></h3>
 			<span>Server URL: </span><b><span class='server-url'><?= $project_info['url'] ?></span></b>
+			<br>
+			<span>API Key: </span><b><span class='project-api-key'><?= $project_info['api-key'] ?></span></b>
 			<span class='server-type'><?= $project_info['server-type'] ?></span>
 		</div>
-		<div class='table-controls ml-3'>
-			<button type='button' class='btn btn-outline-primary btn-sm add-row-btn'>+ Row</button>
-			<button type='button' class='btn btn-outline-primary btn-sm add-col-btn'>+ Column</button>
-			<button type='button' class='btn btn-outline-primary btn-sm remove-btn' disabled>- Remove</button>
-			<button type='button' class='btn btn-outline-info btn-sm save-btn mx-3' disabled>Save</button>
-			<button type='button' class='btn btn-outline-info btn-sm export-btn'>Export</button>
-			<button type='button' class='btn btn-outline-info btn-sm import-btn' data-translation-type='form'>Import</button>
-		</div>
-		<div class='card-body'>
-			<?php
+		<div class='loader-container'><div class='loader'></div></div>
+		<?php
+		foreach (['form', 'event'] as $type) {
 			if ($project_info['server-type'] == 'export') {
-				$translations = json_decode($project_info['export-form-translations']);
+				$translations = json_decode($project_info["export-$type-translations"]);
 			} else {
-				$translations = json_decode($project_info['form-translations']);
+				$translations = json_decode($project_info["$type-translations"]);
 			}
-			printTranslationsTable($translations, 'form');
-			?>
-		</div>
-		
-		<div class='table-controls ml-3'>
-			<button type='button' class='btn btn-outline-primary btn-sm add-row-btn'>+ Row</button>
-			<button type='button' class='btn btn-outline-primary btn-sm add-col-btn'>+ Column</button>
-			<button type='button' class='btn btn-outline-primary btn-sm remove-btn' disabled>- Remove</button>
-			<button type='button' class='btn btn-outline-info btn-sm save-btn mx-3' disabled>Save</button>
-			<button type='button' class='btn btn-outline-info btn-sm export-btn'>Export</button>
-			<button type='button' class='btn btn-outline-info btn-sm import-btn' data-translation-type='event'>Import</button>
-		</div>
-		<div class='card-body'>
-			<?php
-			if ($project_info['server-type'] == 'export') {
-				$translations = json_decode($project_info['export-event-translations']);
-			} else {
-				$translations = json_decode($project_info['event-translations']);
-			}
-			printTranslationsTable($translations, 'event');
-			?>
-		</div>
+			printTranslationsTable($translations, $type);
+		}
+		?>
 	</div>
 	<br>
 	<?php
 }
 
-foreach ($import_servers as $server_i => $server) {
-	$url = $server['redcap-url'];
-	foreach ($server['projects'] as $project_i => $project) {
-		$project['url'] = $url;
-		$project['server-index'] = $server_i + 1;
-		$project['server-type'] = 'import';
-		$project['project-index'] = $project_i + 1;
-		printProjectCard($project);
+foreach ([$export_servers, $import_servers] as $server_set) {
+	foreach ($server_set as $server_i => $server) {
+		$url = $server['redcap-url'];
+		foreach ($server['projects'] as $project_i => $project) {
+			$project['url'] = $url;
+			$project['server-index'] = $server_i + 1;
+			$project['server-type'] = $server_set == $import_servers ? 'import' : 'export';
+			$project['project-index'] = $project_i + 1;
+			printProjectCard($project);
+		}
 	}
 }
-
-echo "<pre>export_servers:\n" . print_r($export_servers, true) . "</pre>";
-echo "<pre>import_servers:\n" . print_r($import_servers, true) . "</pre>";
 
 ?>
 <!-- file import modal -->
