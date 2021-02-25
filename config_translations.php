@@ -1,5 +1,4 @@
 <?php
-
 if (isset($_POST['project-api-key']) and isset($_POST['server-url'])) {
 	if (isset($_POST['table_saved'])) {
 		$table_saved_error_message = $module->importTranslationsTable();
@@ -10,7 +9,6 @@ if (isset($_POST['project-api-key']) and isset($_POST['server-url'])) {
 			$response->success = false;
 			$response->error = $table_saved_error_message;
 		}
-		carl_log($response);
 		
 		header('Content-type: application/json');
 		exit(json_encode($response));
@@ -18,6 +16,7 @@ if (isset($_POST['project-api-key']) and isset($_POST['server-url'])) {
 		$import_error_message = $module->importTranslationsFile();
 	}
 }
+require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
 
 $export_servers = $module->getSubSettings('export-servers');
 $import_servers = $module->getSubSettings('servers');
@@ -152,3 +151,6 @@ foreach ([$export_servers, $import_servers] as $server_set) {
 	}
 </script>
 <script type='text/javascript' src='<?= $module->getUrl('js/config_translations.js') ?>'></script>
+
+<?php
+require_once APP_PATH_DOCROOT . 'ProjectGeneral/footer.php';

@@ -130,7 +130,6 @@ $(document).ready(function() {
 				'server-type': $(card).find('span.server-type').text()
 			},
 			error: function(response, status, err) {
-				console.log('response', response.responseText);
 				alert("There was an issue saving translations updates: " + err);
 			},
 			complete: function(response, status) {
