@@ -145,6 +145,11 @@ $(document).ready(function() {
 		var savebtn = $(this).closest('.card-body').prev('div.table-controls').find('.save-btn');
 		$(savebtn).removeClass('btn-outline-info btn-info');
 		$(savebtn).addClass('btn-info');
+		
+		// replace commas with underscores
+		var inputted_name = $(this).find('div').text();
+		var commas_replaced = inputted_name.replaceAll(',', '_');
+		$(this).find('div').html(commas_replaced);
 	});
 	
 	// export translations from table

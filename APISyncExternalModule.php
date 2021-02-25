@@ -564,7 +564,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		$url = $progress->getCurrentServerUrl();
 		$apiKey = $project['api-key'];
-		
+
 		if($progress->getBatchIndex() === 0){
 			$this->log("
 				<div>Exporting records from the remote project titled:</div>
@@ -619,7 +619,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			'format' => 'json',
 			'records' => $batch
 		]);
-
+		
 		// will only build translations if doc_id present in $project['form-translations'/'event-translations']
 		$this->buildTranslations($project);
 
@@ -632,9 +632,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		if (gettype($project['event-translations']) == 'array') {
 			$this->translateEventNames($response, $project['event-translations']);
 		}
-
+		
 		$this->prepareImportData($response, $recordIdFieldName, $project['record-id-prefix']);
-
+		
 		$stopEarly = $this->importBatch($project, $batchText, $batchSize, $response, $progress);
 		
 		$progress->incrementBatch();
@@ -935,17 +935,18 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	private function translateFormNames(&$data, $translations) {
 		// translate [redcap_repeat_instrument] and [$form . '_complete'] fields where applicable
 		foreach ($data as &$instance) {
-			foreach ($translations as $local_name => $foreign_names) {
+			foreach ($translations as $i => $form_names) {
 				// [redcap_repeat_instrument] component
-				if (in_array($instance['redcap_repeat_instrument'], $foreign_names, true)) {
-					$instance['redcap_repeat_instrument'] = $local_name;
+				$local_form_name = $form_names[0];
+				if (in_array($instance['redcap_repeat_instrument'], $form_names, true)) {
+					$instance['redcap_repeat_instrument'] = $local_form_name;
 				}
 				
 				// [$form . '_complete'] components
-				foreach($foreign_names as $foreign_form_name) {
-					if (isset($instance[$foreign_form_name . '_complete'])) {
-						$instance[$local_name . '_complete'] = $instance[$foreign_form_name . '_complete'];
-						unset($instance[$foreign_form_name . '_complete']);
+				foreach($form_names as $other_form_name) {
+					if (isset($instance[$other_form_name . '_complete'])) {
+						$instance[$local_form_name . '_complete'] = $instance[$other_form_name . '_complete'];
+						unset($instance[$other_form_name . '_complete']);
 					}
 				}
 			}
@@ -955,13 +956,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	private function translateEventNames(&$data, $translations) {
 		// translate [redcap_event_name] fields where applicable
 		foreach ($data as &$instance) {
-			foreach ($translations as $local_name => $foreign_names) {
+			foreach ($translations as $event_names) {
 				// [redcap_event_name] component
+				$local_event_name = $event_names[0];
 				$event_name_pieces = explode('_arm_', $instance['redcap_event_name']);
 				$event_name = $event_name_pieces[0];
 				$event_arm_number = $event_name_pieces[1];
-				if (in_array($event_name, $foreign_names, true)) {
-					$instance['redcap_event_name'] = $local_name . "_arm_" . $event_arm_number;
+				if (in_array($event_name, $event_names, true)) {
+					$instance['redcap_event_name'] = $local_event_name . "_arm_" . $event_arm_number;
 					break;
 				}
 			}
@@ -969,58 +971,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 	
 	private function buildTranslations(&$project) {
-		// if user supplied a form-translations file, convert it to array usable by translateFormNames
-		if (ctype_digit($project['form-translations'])) {
-			// get file information for configured form translations file
-			$form_doc_id = $project['form-translations'];
-			$file_info = $this->getEdocInfo($form_doc_id);
-			
-			if ($file_info) {
-				// ensure it's a plaintext csv that we can open and get a file handle to
-				$extension = strtolower($file_info['file_extension']);
-				$mime_type = strtolower($file_info['mime_type']);
-				if (
-					(strpos($extension, 'csv') !== false) AND
-					(strpos($mime_type, 'text/plain') !== false) AND
-					($file = fopen($file_info['filepath'], 'r'))
-				) {
-					$project['form-translations'] = [];
-					while ($form_names = fgetcsv($file)) {
-						// convert to REDCap form name format
-						foreach ($form_names as $i => $label) {
-							$form_names[$i] = $this->formatFormName($label);
-						}
-						
-						$local_name = array_shift($form_names);
-						$project['form-translations'][$local_name] = $form_names;
-					}
-				}
-			}
-		}
-		
-		// if user supplied a event-translations file, convert it to array usable by translateEventNames
-		if (ctype_digit($project['event-translations'])) {
-			// get file information for configured event translations file
-			$event_doc_id = $project['event-translations'];
-			$file_info = $this->getEdocInfo($event_doc_id);
-			if ($file_info) {
-				// ensure it's a plaintext csv that we can open and get a file handle to
-				$extension = strtolower($file_info['file_extension']);
-				$mime_type = strtolower($file_info['mime_type']);
-				if (
-					(strpos($extension, 'csv') !== false) AND
-					(strpos($mime_type, 'text/plain') !== false) AND
-					($file = fopen($file_info['filepath'], 'r'))
-				) {
-					$project['event-translations'] = [];
-					while ($event_names = fgetcsv($file)) {
-						// convert to REDCap event name format
-						foreach ($event_names as $i => $label) {
-							$event_names[$i] = $this->formatEventName($label);
-						}
-						
-						$local_name = array_shift($event_names);
-						$project['event-translations'][$local_name] = $event_names;
+		foreach (['form', 'event'] as $type) {
+			if (!empty($project["$type-translations"])) {
+				$project["$type-translations"] = json_decode($project["$type-translations"], true);
+				foreach($project["$type-translations"] as $i => $row) {
+					foreach($row as $j => $name) {
+						$func_name = "format" . ucfirst($type) . "Name";
+						$project["$type-translations"][$i][$j] = $this->$func_name($name);
 					}
 				}
 			}
