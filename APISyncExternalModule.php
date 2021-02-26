@@ -984,12 +984,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		
 		foreach (['form', 'event'] as $type) {
 			$setting = &$project[$proj_key_prefix . "$type-translations"];
-			if (!empty($setting)) {
+			if (!empty($setting) and gettype($setting) == 'string') {
 				$setting = json_decode($setting, true);
-				foreach($setting as $i => $row) {
-					foreach($row as $j => $name) {
-						$func_name = "format" . ucfirst($type) . "Name";
-						$setting[$i][$j] = $this->$func_name($name);
+				if ($setting) {
+					foreach($setting as $i => $row) {
+						foreach($row as $j => $name) {
+							$func_name = "format" . ucfirst($type) . "Name";
+							$setting[$i][$j] = $this->$func_name($name);
+						}
 					}
 				}
 			}
