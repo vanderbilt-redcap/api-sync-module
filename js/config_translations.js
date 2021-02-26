@@ -14,7 +14,7 @@ $(document).ready(function() {
 		$(tbody).children('tr').each(function(i, tr) {
 			var entries = [];
 			$(tr).find('td > div').each(function(j, div) {
-				entries.push($(div).text().trim());
+				entries.push($(div).text().trim().replaceAll(',', '_'));
 			});
 			lines.push(entries.join(', '));
 		});
@@ -72,6 +72,10 @@ $(document).ready(function() {
 
 	// add row or col
 	$('body').on('click', '.add-row-btn', function() {
+		var savebtn = $(this).closest('.card-body').prev('div.table-controls').find('.save-btn');
+		$(savebtn).removeClass('btn-outline-info btn-info');
+		$(savebtn).addClass('btn-info');
+		
 		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
 		var cols = $(tbl).find('thead th').length;
 		var new_row = "<tr class='border-bottom'>";
@@ -82,6 +86,10 @@ $(document).ready(function() {
 		$(tbl).find('tbody').append(new_row);
 	});
 	$('body').on('click', '.add-col-btn', function() {
+		var savebtn = $(this).closest('.card-body').prev('div.table-controls').find('.save-btn');
+		$(savebtn).removeClass('btn-outline-info btn-info');
+		$(savebtn).addClass('btn-info');
+		
 		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
 		$(tbl).find('thead tr').append('<th></th>');
 		$(tbl).find('tbody tr').each(function(i, row) {
@@ -92,6 +100,10 @@ $(document).ready(function() {
 
 	// remove highlighted table row or column
 	$('body').on('click', '.remove-btn', function() {
+		var savebtn = $(this).closest('.card-body').prev('div.table-controls').find('.save-btn');
+		$(savebtn).removeClass('btn-outline-info btn-info');
+		$(savebtn).addClass('btn-info');
+		
 		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
 		var rows = $(tbl).find('tbody tr').length;
 		var cols = $(tbl).find('thead th').length;
@@ -145,11 +157,6 @@ $(document).ready(function() {
 		var savebtn = $(this).closest('.card-body').prev('div.table-controls').find('.save-btn');
 		$(savebtn).removeClass('btn-outline-info btn-info');
 		$(savebtn).addClass('btn-info');
-		
-		// replace commas with underscores
-		var inputted_name = $(this).find('div').text();
-		var commas_replaced = inputted_name.replaceAll(',', '_');
-		$(this).find('div').html(commas_replaced);
 	});
 	
 	// export translations from table

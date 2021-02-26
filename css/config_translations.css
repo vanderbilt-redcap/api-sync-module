@@ -1,3 +1,16 @@
+.alert.alert-primary {
+	border: 1px solid #b8daff !important;
+}
+.alert.alert-info {
+	border: 1px solid #bee5eb !important;
+}
+
+.card {
+	margin-bottom: 35px;
+	border: 1px solid rgba(0,0,0,0.225);
+	max-width: 95%;
+}
+
 .highlight {
 	background-color: #afdcff;
 }

@@ -93,16 +93,52 @@ function printProjectCard($project_info) {
 	<?php
 }
 
-foreach ([$export_servers, $import_servers] as $server_set) {
-	foreach ($server_set as $server_i => $server) {
-		$url = $server['redcap-url'];
-		foreach ($server['projects'] as $project_i => $project) {
-			$project['url'] = $url;
-			$project['server-index'] = $server_i + 1;
-			$project['server-type'] = $server_set == $import_servers ? 'import' : 'export';
-			$project['project-index'] = $project_i + 1;
-			printProjectCard($project);
+if (empty($import_servers) and empty($export_servers)) {
+	?>
+	<div class='alert alert-primary w-50'>
+		<h5 class='py-2'>No export/import servers configured</h5>
+		<p>Once you visit the External Modules page and configure servers and projects to export/import to or from, you can return to this page to specify form and event translations.</p>
+	</div>
+	<?php
+} else {
+	?>
+	<div class='alert alert-primary w-75'>
+		<h5 class=''>Form and Event Translations</h5>
+		<p>You can edit the tables below to specify form and event translations per project.</p>
+		<p>For each table, the first column should hold the name of forms and events that exist on this project.</p>
+		<p>For import tables, columns past the first column should hold the names of forms or events that you want the API Sync module to translate upon import. Each value will be translated to the name in the first column.</p>
+		<p>For export tables, the API Sync module converts this project's form and event names in the first column to the value in the second column upon export.</p>
+	</div>
+	<?php
+}
+
+foreach ($import_servers as $server_i => $server) {
+	$url = $server['redcap-url'];
+	foreach ($server['projects'] as $project_i => $project) {
+		$project['url'] = $url;
+		$project['server-index'] = $server_i + 1;
+		$project['server-type'] = 'import';
+		$project['project-index'] = $project_i + 1;
+		if (empty($url) or empty($project['api-key'])) {
+			continue;
 		}
+		printProjectCard($project);
+	}
+}
+
+// show export server projects
+foreach ($export_servers as $server_i => $server) {
+	$url = $server['export-redcap-url'];
+	foreach ($server['export-projects'] as $project_i => $project) {
+		$project['url'] = $url;
+		$project['server-index'] = $server_i + 1;
+		$project['server-type'] = 'export';
+		$project['project-index'] = $project_i + 1;
+		$project['api-key'] = $project['export-api-key'];
+		if (empty($url) or empty($project['api-key'])) {
+			continue;
+		}
+		printProjectCard($project);
 	}
 }
 
