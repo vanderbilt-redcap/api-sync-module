@@ -636,6 +636,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$this->translateFormNames($data, $project);
 		$this->translateEventNames($data, $project);
 		
+		$proj_key_prefix = $this->getProjectTypePrefix($project);
 		$prefix = $project[$proj_key_prefix . 'record-id-prefix'];
 		$metadata = $this->getMetadata($this->getProjectId());
 		$formNamesByField = [];
