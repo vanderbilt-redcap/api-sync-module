@@ -343,8 +343,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$recordIdPrefix = $project['export-record-id-prefix'];
 
 				if($type === self::UPDATE){
-					if($recordIdPrefix){
-						$this->prepareImportData($project, $data, $recordIdFieldName);
+					if($recordIdPrefix or $this->translationsAreBuilt($project)){
+						$this->prepareData($project, $data, $recordIdFieldName);
 					}
 
 					$args['overwriteBehavior'] = 'overwrite';
@@ -620,7 +620,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			'records' => $batch
 		]);
 		
-		$this->prepareImportData($project, $response, $recordIdFieldName);
+		$this->prepareData($project, $response, $recordIdFieldName);
 		
 		$stopEarly = $this->importBatch($project, $batchText, $batchSize, $response, $progress);
 		
@@ -630,7 +630,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
-	private function prepareImportData(&$project, &$data, $recordIdFieldName){
+	private function prepareData(&$project, &$data, $recordIdFieldName){
 		// perform translations if configured
 		$this->buildTranslations($project);
 		$this->translateFormNames($data, $project);
@@ -905,7 +905,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$this->removeProjectSetting(self::IMPORT_PROGRESS_SETTING_KEY);
 	}
 
-	private function translateFormNames(&$data, &$project) {
+	public function translateFormNames(&$data, &$project) {
 		$proj_prefix = $this->getProjectTypePrefix($project);
 		$translations = $project[$proj_prefix . 'form-translations'];
 		if (gettype($translations) != 'array') {
@@ -947,7 +947,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 	
-	private function translateEventNames(&$data, &$project) {
+	public function translateEventNames(&$data, &$project) {
 		$proj_prefix = $this->getProjectTypePrefix($project);
 		$translations = $project[$proj_prefix . 'event-translations'];
 		if (gettype($translations) != 'array') {
@@ -979,7 +979,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 	
-	private function buildTranslations(&$project) {
+	public function buildTranslations(&$project) {
 		// function will only build translations if json present in $project['form-translations'/'event-translations']
 		$proj_key_prefix = $this->getProjectTypePrefix($project);
 		
@@ -995,13 +995,31 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 						}
 					}
 				}
+			} else {
+				unset($project[$proj_key_prefix . "$type-translations"]);
+			}
+		}
+	}
+
+	private function translationsAreBuilt($project) {
+		$translation_settings = [
+			'form-translations',
+			'event-translations',
+			'export-form-translations',
+			'export-event-translations'
+		];
+		foreach($translation_settings as $name) {
+			if (gettype($project[$name]) == 'array') {
+				return true;
 			}
 		}
 	}
 
 	private function getProjectTypePrefix(&$project) {
-		if (isset($project['export-api-key'])) {
-			return 'export-';
+		foreach ($project as $setting_name => $setting_value) {
+			if (strpos($setting_name, 'export-') !== false) {
+				return 'export-';
+			}
 		}
 		return '';
 	}
