@@ -981,22 +981,21 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	
 	public function buildTranslations(&$project) {
 		// function will only build translations if json present in $project['form-translations'/'event-translations']
+		if ($this->translationsAreBuilt($project)) {
+			return;
+		}
 		$proj_key_prefix = $this->getProjectTypePrefix($project);
 		
 		foreach (['form', 'event'] as $type) {
 			$setting = &$project[$proj_key_prefix . "$type-translations"];
-			if (!empty($setting) and gettype($setting) == 'string') {
-				$setting = json_decode($setting, true);
-				if ($setting) {
-					foreach($setting as $i => $row) {
-						foreach($row as $j => $name) {
-							$func_name = "format" . ucfirst($type) . "Name";
-							$setting[$i][$j] = $this->$func_name($name);
-						}
+			$setting = json_decode($setting, true);
+			if ($setting) {
+				foreach($setting as $i => $row) {
+					foreach($row as $j => $name) {
+						$func_name = "format" . ucfirst($type) . "Name";
+						$setting[$i][$j] = $this->$func_name($name);
 					}
 				}
-			} else {
-				unset($project[$proj_key_prefix . "$type-translations"]);
 			}
 		}
 	}
