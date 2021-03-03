@@ -340,17 +340,15 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 				$args = ['content' => 'record'];
 				
-				$recordIdPrefix = $project['export-record-id-prefix'];
 
 				if($type === self::UPDATE){
-					if($recordIdPrefix or $this->translationsAreBuilt($project)){
-						$this->prepareData($project, $data, $recordIdFieldName);
-					}
+					$this->prepareData($project, $data, $recordIdFieldName);
 
 					$args['overwriteBehavior'] = 'overwrite';
 					$args['data'] = json_encode($data, JSON_PRETTY_PRINT);
 				}
 				else if($type === self::DELETE){
+					$recordIdPrefix = $project['export-record-id-prefix'];
 					if ($recordIdPrefix) {
 						foreach ($data as &$rId) {
 							$rId = $recordIdPrefix . $rId;
@@ -632,22 +630,26 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 	private function prepareData(&$project, &$data, $recordIdFieldName){
 		// perform translations if configured
-		$this->buildTranslations($project);
-		$this->translateFormNames($data, $project);
-		$this->translateEventNames($data, $project);
+		if ($this->translationsAreBuilt($project)) {
+			$this->buildTranslations($project);
+			$this->translateFormNames($data, $project);
+			$this->translateEventNames($data, $project);
+		}
 		
 		$proj_key_prefix = $this->getProjectTypePrefix($project);
 		$prefix = $project[$proj_key_prefix . 'record-id-prefix'];
-		$metadata = $this->getMetadata($this->getProjectId());
-		$formNamesByField = [];
-		foreach($metadata as $fieldName=>$field){
-			$formNamesByField[$fieldName] = $field['form_name'];
-		}
+		if ($prefix) {
+			$metadata = $this->getMetadata($this->getProjectId());
+			$formNamesByField = [];
+			foreach($metadata as $fieldName=>$field){
+				$formNamesByField[$fieldName] = $field['form_name'];
+			}
 
-		foreach($data as &$instance){
-			$instance[$recordIdFieldName] = $prefix . $instance[$recordIdFieldName];
+			foreach($data as &$instance){
+				$instance[$recordIdFieldName] = $prefix . $instance[$recordIdFieldName];
 
-			$this->removeInvalidIncompleteStatuses($instance, $formNamesByField);
+				$this->removeInvalidIncompleteStatuses($instance, $formNamesByField);
+			}
 		}
 	}
 
@@ -996,6 +998,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 						$setting[$i][$j] = $this->$func_name($name);
 					}
 				}
+			} else {
+				unset($project[$proj_key_prefix . "$type-translations"]);
 			}
 		}
 	}

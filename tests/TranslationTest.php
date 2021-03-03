@@ -7,7 +7,7 @@ class TranslationTest extends BaseTest{
 		
         $project1 = [];
 		$module->buildTranslations($project1);
-		$this->assertSame($project1, []);
+		$this->assertSame([], $project1);
 		
 		$project2 = [
 			'form-translations' => '[["Instrument A"," My First Instrument"," My First Instrument_2"],["Instrument B"," Instrument 2"," Instrument 2_2"]]',
