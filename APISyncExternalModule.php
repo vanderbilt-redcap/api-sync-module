@@ -340,17 +340,15 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 				$args = ['content' => 'record'];
 				
-				$recordIdPrefix = $project['export-record-id-prefix'];
 
 				if($type === self::UPDATE){
-					if($recordIdPrefix){
-						$this->prepareImportData($data, $recordIdFieldName, $recordIdPrefix);
-					}
+					$this->prepareData($project, $data, $recordIdFieldName);
 
 					$args['overwriteBehavior'] = 'overwrite';
-					$args['data'] = json_encode($data, JSON_PRETTY_PRINT);;
+					$args['data'] = json_encode($data, JSON_PRETTY_PRINT);
 				}
 				else if($type === self::DELETE){
+					$recordIdPrefix = $project['export-record-id-prefix'];
 					if ($recordIdPrefix) {
 						foreach ($data as &$rId) {
 							$rId = $recordIdPrefix . $rId;
@@ -564,7 +562,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		$url = $progress->getCurrentServerUrl();
 		$apiKey = $project['api-key'];
-		
+
 		if($progress->getBatchIndex() === 0){
 			$this->log("
 				<div>Exporting records from the remote project titled:</div>
@@ -619,9 +617,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			'format' => 'json',
 			'records' => $batch
 		]);
-
-		$this->prepareImportData($response, $recordIdFieldName, $project['record-id-prefix']);
-
+		
+		$this->prepareData($project, $response, $recordIdFieldName);
+		
 		$stopEarly = $this->importBatch($project, $batchText, $batchSize, $response, $progress);
 		
 		$progress->incrementBatch();
@@ -630,17 +628,28 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
-	private function prepareImportData(&$data, $recordIdFieldName, $prefix){
-		$metadata = $this->getMetadata($this->getProjectId());
-		$formNamesByField = [];
-		foreach($metadata as $fieldName=>$field){
-			$formNamesByField[$fieldName] = $field['form_name'];
+	private function prepareData(&$project, &$data, $recordIdFieldName){
+		// perform translations if configured
+		if ($this->translationsAreBuilt($project)) {
+			$this->buildTranslations($project);
+			$this->translateFormNames($data, $project);
+			$this->translateEventNames($data, $project);
 		}
+		
+		$proj_key_prefix = $this->getProjectTypePrefix($project);
+		$prefix = $project[$proj_key_prefix . 'record-id-prefix'];
+		if ($prefix) {
+			$metadata = $this->getMetadata($this->getProjectId());
+			$formNamesByField = [];
+			foreach($metadata as $fieldName=>$field){
+				$formNamesByField[$fieldName] = $field['form_name'];
+			}
 
-		foreach($data as &$instance){
-			$instance[$recordIdFieldName] = $prefix . $instance[$recordIdFieldName];
+			foreach($data as &$instance){
+				$instance[$recordIdFieldName] = $prefix . $instance[$recordIdFieldName];
 
-			$this->removeInvalidIncompleteStatuses($instance, $formNamesByField);
+				$this->removeInvalidIncompleteStatuses($instance, $formNamesByField);
+			}
 		}
 	}
 
@@ -898,25 +907,293 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$this->removeProjectSetting(self::IMPORT_PROGRESS_SETTING_KEY);
 	}
 
-	/*
-	 * This method will be included in framework version 3, likely in REDCap version 9.3.1.
-	 * If/when the min REDCap version for this module increases past that point,
-	 * this method can be removed.
-	 */
-	function getRecordIdField($pid = null){
-		$pid = db_escape($this->requireProjectId($pid));
+	public function translateFormNames(&$data, &$project) {
+		$proj_prefix = $this->getProjectTypePrefix($project);
+		$translations = $project[$proj_prefix . 'form-translations'];
+		if (gettype($translations) != 'array') {
+			return;
+		}
+		
+		// translate [redcap_repeat_instrument] and [$form . '_complete'] fields where applicable
+		foreach ($data as &$instance) {
+			foreach ($translations as $i => $form_names) {
+				// [redcap_repeat_instrument] component
+				$local_form_name = $form_names[0];
+				$export_form_name = $form_names[1];
+				if ($proj_prefix == 'export-') {
+					// export logic
+					if ($instance['redcap_repeat_instrument'] == $local_form_name) {
+						$instance['redcap_repeat_instrument'] = $export_form_name;
+					}
+					
+					// [$form . '_complete'] components
+					if (isset($instance[$local_form_name . '_complete'])) {
+						$instance[$export_form_name . '_complete'] = $instance[$local_form_name . '_complete'];
+						unset($instance[$local_form_name . '_complete']);
+					}
+				} else {
+					// import logic
+					if (in_array($instance['redcap_repeat_instrument'], $form_names, true)) {
+						$instance['redcap_repeat_instrument'] = $local_form_name;
+					}
+					
+					// [$form . '_complete'] components
+					foreach($form_names as $other_form_name) {
+						if (isset($instance[$other_form_name . '_complete'])) {
+							$instance[$local_form_name . '_complete'] = $instance[$other_form_name . '_complete'];
+							unset($instance[$other_form_name . '_complete']);
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	public function translateEventNames(&$data, &$project) {
+		$proj_prefix = $this->getProjectTypePrefix($project);
+		$translations = $project[$proj_prefix . 'event-translations'];
+		if (gettype($translations) != 'array') {
+			return;
+		}
+		// translate [redcap_event_name] fields where applicable
+		foreach ($data as &$instance) {
+			foreach ($translations as $event_names) {
+				// [redcap_event_name] component
+				$local_event_name = $event_names[0];
+				$export_event_name = $event_names[1];
+				$event_name_pieces = explode('_arm_', $instance['redcap_event_name']);
+				$event_name = $event_name_pieces[0];
+				$event_arm_number = $event_name_pieces[1];
+				if ($proj_prefix == 'export-') {
+					// export logic
+					if ($event_name == $local_event_name) {
+						$instance['redcap_event_name'] = $export_event_name . "_arm_" . $event_arm_number;
+						break;
+					}
+				} else {
+					// import logic
+					if (in_array($event_name, $event_names, true)) {
+						$instance['redcap_event_name'] = $local_event_name . "_arm_" . $event_arm_number;
+						break;
+					}
+				}
+			}
+		}
+	}
+	
+	public function buildTranslations(&$project) {
+		// function will only build translations if json present in $project['form-translations'/'event-translations']
+		if ($this->translationsAreBuilt($project)) {
+			return;
+		}
+		$proj_key_prefix = $this->getProjectTypePrefix($project);
+		
+		foreach (['form', 'event'] as $type) {
+			$setting = &$project[$proj_key_prefix . "$type-translations"];
+			$setting = json_decode($setting, true);
+			if ($setting) {
+				foreach($setting as $i => $row) {
+					foreach($row as $j => $name) {
+						$func_name = "format" . ucfirst($type) . "Name";
+						$setting[$i][$j] = $this->$func_name($name);
+					}
+				}
+			} else {
+				unset($project[$proj_key_prefix . "$type-translations"]);
+			}
+		}
+	}
 
-		$result = $this->query("
-			select field_name
-			from redcap_metadata
-			where project_id = $pid
-			order by field_order
-			limit 1
-		");
+	private function translationsAreBuilt($project) {
+		$translation_settings = [
+			'form-translations',
+			'event-translations',
+			'export-form-translations',
+			'export-event-translations'
+		];
+		foreach($translation_settings as $name) {
+			if (gettype($project[$name]) == 'array') {
+				return true;
+			}
+		}
+	}
 
-		$row = $result->fetch_assoc();
+	private function getProjectTypePrefix(&$project) {
+		foreach ($project as $setting_name => $setting_value) {
+			if (strpos($setting_name, 'export-') !== false) {
+				return 'export-';
+			}
+		}
+		return '';
+	}
 
-		return $row['field_name'];
+	private function formatEventName($event_label) {
+		// // code copied from \Project::getUniqueEventNames
+		$event_name = trim(label_decode($event_label));
+		// Remove all spaces and non-alphanumeric characters, then make it lower case.
+		$event_name = preg_replace("/[^0-9a-z_ ]/i", '', $event_name);
+		$event_name = strtolower(substr(str_replace(" ", "_", $event_name), 0, 18));
+		// Remove any underscores at the beginning
+		while (substr($event_name, 0, 1) == "_") {
+			$event_name = substr($event_name, 1);
+		}
+		// Remove any underscores at the end
+		while (substr($event_name, -1, 1) == "_") {
+			$event_name = substr($event_name, 0, -1);
+		}
+		// If event name is still blank (maybe because of using multi-byte characters)
+		if ($event_name == '') {
+			// Get first 10 letters of MD5 of the event label
+			$event_name = substr(md5($event_label), 0, 10);
+		}
+		return $event_name;
+	}
+
+	private function formatFormName($form_label) {
+		// code copied from \REDCap::setFormName
+		$form_name = strip_tags(label_decode($form_label));
+		$form_name = preg_replace("/[^a-z0-9_]/", "", str_replace(" ", "_", strtolower(html_entity_decode($form_name, ENT_QUOTES))));
+		// Remove any double underscores, beginning numerals, and beginning/ending underscores
+		while (strpos($form_name, "__") !== false) 		$form_name = str_replace("__", "_", $form_name);
+		while (substr($form_name, 0, 1) == "_") 		$form_name = substr($form_name, 1);
+		while (substr($form_name, -1) == "_") 			$form_name = substr($form_name, 0, -1);
+		while (is_numeric(substr($form_name, 0, 1))) 	$form_name = substr($form_name, 1);
+		while (substr($form_name, 0, 1) == "_") 		$form_name = substr($form_name, 1);
+		// Cannot begin with numeral and cannot be blank
+		if (is_numeric(substr($form_name, 0, 1)) || $form_name == "") {
+			$form_name = substr(preg_replace("/[0-9]/", "", md5($form_name)), 0, 4) . $form_name;
+		}
+		// Make sure it's less than 50 characters long
+		$form_name = substr($form_name, 0, 50);
+		while (substr($form_name, -1) == "_") $form_name = substr($form_name, 0, -1);
+		return $form_name;
+	}
+
+	public function importTranslationsFile() {
+		// this function returns null (when successful) or a string error message
+		$validation = $this->validateImport();
+		if (gettype($validation) == 'string') {
+			// return error string
+			return $validation;
+		}
+		
+		// read csv lines into translation matrix from file
+		$uploaded_filepath = $_FILES['attach-file-1']['tmp_name'];
+		$translation_matrix = [];
+		if ($uploaded_csv = fopen($uploaded_filepath, 'r')) {
+			while ($csv = fgetcsv($uploaded_csv)) {
+				if (!$csv_field_count) {
+					$csv_field_count = count($csv);
+				} else {
+					if ($csv_field_count != count($csv)) {
+						return "Invalid CSV file contents -- each row should contain the same amount of columns.";
+					}
+				}
+				$translation_matrix[] = $csv;
+			}
+		} else {
+			return "Couldn't open the uploaded file.";
+		}
+		
+		if (empty($translation_matrix) or $csv_field_count < 2) {
+			"Couldn't parse uploaded CSV file into a valid translation matrix.";
+		}
+		
+		// save translations to appropriate setting key/index
+		$this->saveTranslations($translation_matrix, $validation['target_server_type'], $validation['target_server_index'], $validation['target_project_index']);
+	}
+
+	public function importTranslationsTable() {
+		// this function returns null (when successful) or a string error message
+		$validation = $this->validateImport();
+		if (gettype($validation) == 'string') {
+			return $validation;
+		}
+		
+		// escaping here causes issues with detecting newlines in the preg_split call below
+		// $translations = db_escape($_POST['translations']);
+		$translations = $_POST['translations'];
+		
+		$translation_matrix = [];
+		foreach(preg_split("/((\r?\n)|(\r\n?))/", $translations) as $line){
+			$translation_matrix[] = str_getcsv(db_escape($line));
+		}
+		
+		// save translations to appropriate setting key/index
+		$this->saveTranslations($translation_matrix, $validation['target_server_type'],$validation['target_server_index'], $validation['target_project_index']);
+	}
+	
+	private function validateImport() {
+		// returns an error string or, settings valid, an array with target project/server information
+		$project_api_key = $_POST['project-api-key'];
+		$server_url = $_POST['server-url'];
+		$server_type = $_POST['server-type'];
+		
+		// validate project_api_key
+		$found_forbidden_char = preg_match('[^\dABCDEF]', $project_api_key);
+		if ($found_forbidden_char) {
+			return "Project API keys may only contain hexadecimal digits.";
+		}
+		
+		// validate server_type
+		if ($server_type != 'import' and $server_type != 'export') {
+			return "Server type '$server_type' not recognized.";
+		}
+		
+		if (!isset($_POST['table_saved'])) {
+			// check for file error / 0 size
+			if ($_FILES['attach-file-1']['error'] != '0' or $_FILES['attach-file-1']['size'] == '0') {
+				return "There was an issue uploading the file to the server.";
+			}
+		}
+		
+		// find the target server
+		$server_settings_key = $server_type == 'import' ? 'servers' : 'export-servers';
+		$servers = $this->getSubSettings($server_settings_key);
+		$server_setting_key_prefix = $server_type == 'export' ? 'export-' : '';
+		
+		foreach ($servers as $server_index => $server) {
+			if ($server[$server_setting_key_prefix . 'redcap-url'] == $server_url) {
+				$target_server = $server;
+				$target_server_index = $server_index;
+				break;
+			}
+		}
+		if (empty($target_server)) {
+			return "Couldn't find server in settings with URL: '$server_url'.";
+		}
+		
+		// find target project in target server
+		foreach($target_server[$server_setting_key_prefix . 'projects'] as $project_index => $project) {
+			if ($project[$server_setting_key_prefix . 'api-key'] == $project_api_key) {
+				$target_project_index = $project_index;
+				break;
+			}
+		}
+		if (!isset($target_project_index)) {
+			return "Couldn't find project in server settings with API key: '$project_api_key'.";
+		}
+		
+		return [
+			'target_server' => $target_server,
+			'target_server_type' => $server_type,
+			'target_server_index' => $target_server_index,
+			'target_project_index' => $target_project_index
+		];
+	}
+	
+	private function saveTranslations($translation_matrix, $target_server_type, $target_server_index, $target_project_index) {
+		// save translations to appropriate setting key/index
+		$serial_translations = json_encode($translation_matrix);
+		$translations_type = $_POST['translations-type'];
+		if ($target_server_type == 'export') {
+			$translations_key = "export-$translations_type-translations";
+		} else {
+			$translations_key = "$translations_type-translations";
+		}
+		$current_translations = $this->getProjectSetting($translations_key);
+		$current_translations[$target_server_index][$target_project_index] = $serial_translations;
+		$this->setProjectSetting($translations_key, $current_translations);
 	}
 }
 
