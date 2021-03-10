@@ -342,10 +342,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				
 
 				if($type === self::UPDATE){
-					$this->prepareData($project, $data, $recordIdFieldName);
-
+					$prepped_data = $this->prepareData($project, $data, $recordIdFieldName);
 					$args['overwriteBehavior'] = 'overwrite';
-					$args['data'] = json_encode($data, JSON_PRETTY_PRINT);
+					$args['data'] = json_encode($prepped_data, JSON_PRETTY_PRINT);
 				}
 				else if($type === self::DELETE){
 					$recordIdPrefix = $project['export-record-id-prefix'];
@@ -618,7 +617,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			'records' => $batch
 		]);
 		
-		$this->prepareData($project, $response, $recordIdFieldName);
+		$response = $this->prepareData($project, $response, $recordIdFieldName);
 		
 		$stopEarly = $this->importBatch($project, $batchText, $batchSize, $response, $progress);
 		
@@ -628,10 +627,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
-	private function prepareData(&$project, &$data, $recordIdFieldName){
+	private function prepareData(&$project, $data, $recordIdFieldName){
 		// perform translations if configured
+		$this->buildTranslations($project);
 		if ($this->translationsAreBuilt($project)) {
-			$this->buildTranslations($project);
 			$this->translateFormNames($data, $project);
 			$this->translateEventNames($data, $project);
 		}
@@ -651,6 +650,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$this->removeInvalidIncompleteStatuses($instance, $formNamesByField);
 			}
 		}
+		return $data;
 	}
 
 	private function removeInvalidIncompleteStatuses(&$instance, $formNamesByField){
