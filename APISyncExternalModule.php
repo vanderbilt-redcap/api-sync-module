@@ -779,11 +779,20 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function apiRequest($url, $apiKey, $data){
-		if(strpos($url, '://') === false){
-			$url = "https://$url";
+		$separator = '://';
+		$parts = explode($separator, $url);
+		$domainAndPath = array_pop($parts);
+		$protocol = array_pop($parts);
+		
+		if(
+			empty($protocol) // Add https if missing
+			||
+			strpos($domainAndPath, 'localhost') !== 0  // Force non-localhost URLs to use HTTPS to protect API keys.
+		){
+			$protocol = 'https';
 		}
 
-		$url = "$url/api/";
+		$url = $protocol . $separator . $domainAndPath . "/api/";
 
 		$data = array_merge(
 			[
