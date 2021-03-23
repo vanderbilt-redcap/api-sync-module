@@ -394,11 +394,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$size = $this->getProjectSetting('export-sub-batch-size');
 		if($size === null){
 			/**
-			 * Size estimates won't be exact, so we use 7MB to make sure we stay below an 8MB maximum.
-			 * This is chosen semi-arbitrarily.  For SAVE O2 We did see that OSHU's REDCap server
-			 * seemed to be limited to sending 16MB curl POST requests.
+			 * A 7MB limit was originally added to avoid 16MB API requests from being truncated
+			 * and returning an empty error message when OSHU was attempting to push to Vanderbilt.
+			 * However, 7MB didn't work when testing API calls from redcap.vanderbilt.edu to itself
+			 * on project 122799, so we lowered this to 1MB.  Each request still took about 3 minutes
+			 * on that project, so 1MB might be a more appropriate default.
 			 */
-			$size = 7;
+			$size = 1;
 		}
 
 		// Return the size in bytes
