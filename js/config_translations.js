@@ -13,8 +13,8 @@ $(document).ready(function() {
 		var lines = [];
 		$(tbody).children('tr').each(function(i, tr) {
 			var entries = [];
-			$(tr).find('td > div').each(function(j, div) {
-				entries.push($(div).text().trim().replaceAll(',', '_'));
+			$(tr).find('td > textarea').each(function(j, cell) {
+				entries.push(cell.value.trim().replaceAll(',', '_'));
 			});
 			lines.push(entries.join(', '));
 		});
@@ -80,7 +80,7 @@ $(document).ready(function() {
 		var cols = $(tbl).find('thead th').length;
 		var new_row = "<tr class='border-bottom'>";
 		for (i = 0; i < cols; i++) {
-			new_row += "<td><div contenteditable></div></td>";
+			new_row += api_sync_module.translation_table_cell;
 		}
 		new_row += "</tr>";
 		$(tbl).find('tbody').append(new_row);
@@ -93,7 +93,7 @@ $(document).ready(function() {
 		var tbl = $(this).parent().next('.card-body').find('.translations-tbl')
 		$(tbl).find('thead tr').append('<th></th>');
 		$(tbl).find('tbody tr').each(function(i, row) {
-			$(row).append("<td><div contenteditable></div></td>");
+			$(row).append(api_sync_module.translation_table_cell);
 		});
 		api_sync_module.rename_columns(tbl);
 	});

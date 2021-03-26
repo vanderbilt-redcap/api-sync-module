@@ -14,6 +14,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 	const UPDATE = 'update';
 	const DELETE = 'delete';
+	const TRANSLATION_TABLE_CELL = "<td><textarea></textarea></td>";
 
 	const EXPORT_CANCELLED_MESSAGE = 'Export cancelled.';
 
@@ -1195,6 +1196,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$current_translations[$target_server_index][$target_project_index] = $serial_translations;
 		$this->setProjectSetting($translations_key, $current_translations);
 	}
+
 }
 
 // Shim for function that doesn't exist until php 7.

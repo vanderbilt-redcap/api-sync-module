@@ -19,6 +19,14 @@ span.server-type {
 	display: none;
 }
 
+table.translations-tbl {
+	width: auto;
+}
+td textarea {
+	resize: horizontal;
+	height: 2rem;
+}
+
 .loader-container {
 	display: none;
 	flex-direction: row;

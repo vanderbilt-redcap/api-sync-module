@@ -57,7 +57,7 @@ function printTranslationsTable($translations = [], $type) {
 				<?php foreach($translations as $row) {
 					echo "<tr class='border-bottom'>";
 					foreach($row as $name) {
-						echo "<td><div contenteditable>$name</div></td>";
+						echo "<td><textarea>$name</textarea></td>";
 					}
 					echo "</tr>";
 				}?>
@@ -183,7 +183,8 @@ foreach ($export_servers as $server_i => $server) {
 		css_url: '<?= $module->getUrl("css/config_translations.css") ?>',
 		import_error_message: "<?= $import_error_message ?>",
 		table_saved_error_message: "<?= $table_saved_error_message ?>",
-		pid: "<?= $module->getProjectId() ?>"
+		pid: "<?= $module->getProjectId() ?>",
+		translation_table_cell: '<?= $module::TRANSLATION_TABLE_CELL; ?>'
 	}
 </script>
 <script type='text/javascript' src='<?= $module->getUrl('js/config_translations.js') ?>'></script>
