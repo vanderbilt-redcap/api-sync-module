@@ -140,7 +140,7 @@ $(document).ready(function() {
 				'translations-type': $(this).attr('data-translation-type'),
 				'project-api-key': $(card).find('span.project-api-key').text(),
 				'server-url': (card).find('span.server-url').text(),
-				'server-type': $(card).find('span.server-type').text()
+				'server-type': $(card).find('span.server-type').text().toLowerCase()
 			},
 			error: function(response, status, err) {
 				alert("There was an issue saving translations updates: " + err);

@@ -26,8 +26,12 @@ function printTranslationsTable($translations = [], $type, $server_type) {
 	if (!empty($row_count)) {
 		$column_count = count($translations[0]);
 	}
+	$col_name = "Destination";
+	$col2_name = "Source";
 	if ($server_type == 'export') {
 		$column_count = 2;
+		$col_name = "Source";
+		$col2_name = "Destination";
 	}
 	
 	?>
@@ -36,21 +40,21 @@ function printTranslationsTable($translations = [], $type, $server_type) {
 		<?php if ($server_type != 'export') { ?> <button type='button' class='btn btn-outline-primary btn-sm add-col-btn'>+ Column</button> <?php } ?>
 		<button type='button' class='btn btn-outline-primary btn-sm remove-btn'>- Remove</button>
 		<button type='button' class='btn btn-outline-info btn-sm save-btn mx-3' data-translation-type='<?= $type ?>'>Save</button>
-		<button type='button' class='btn btn-outline-info btn-sm export-btn'>Export</button>
-		<button type='button' class='btn btn-outline-info btn-sm import-btn' data-translation-type='<?= $type ?>'>Import</button>
+		<button type='button' class='btn btn-outline-info btn-sm export-btn'>Export CSV</button>
+		<button type='button' class='btn btn-outline-info btn-sm import-btn' data-translation-type='<?= $type ?>'>Import CSV</button>
 	</div>
 	<div class='card-body'>
 		<h4><?= ucfirst($type) ?> Translations Table</h4>
 		<table class='table translations-tbl <?=$server_type?>'>
 			<thead>
 				<tr>
-					<th>Local <?= ucfirst($type) ?> Name</th>
+					<th> <?= $col_name . ' ' . ucfirst($type) ?> Name</th>
 					<?php
 					if (empty($column_count)) {
-						echo "<th>Translated Name #1</th>";
+						echo "<th>$col_name Name</th>";
 					} else {
 						for ($i = 1; $i <= ($column_count - 1); $i++) {
-							echo "<th>Translated Name #$i</th>";
+							echo "<th>$col2_name Name</th>";
 						}
 					}
 					?>
@@ -60,7 +64,7 @@ function printTranslationsTable($translations = [], $type, $server_type) {
 				<?php foreach($translations as $row) {
 					echo "<tr class='border-bottom'>";
 					for ($col_index = 1; $col_index <= $column_count; $col_index++) {
-						$name = $row[$col_index-1];
+						$name = trim($row[$col_index-1]);
 						echo "<td><textarea>$name</textarea></td>";
 					}
 					echo "</tr>";
