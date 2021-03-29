@@ -1197,6 +1197,42 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$this->setProjectSetting($translations_key, $current_translations);
 	}
 
+	public function getRemoteProjectTitle($remote_api_endpoint, $api_key) {
+		$api_url = preg_replace("~redcap/.+~", "redcap/api/", $remote_api_endpoint);
+		
+		$data = array(
+			'token' => $api_key,
+			'content' => 'project',
+			'format' => 'json',
+			'returnFormat' => 'json'
+		);
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, $api_url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+		curl_setopt($ch, CURLOPT_VERBOSE, 0);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+		curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+		curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+		curl_setopt($ch, CURLOPT_FRESH_CONNECT, 1);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data, '', '&'));
+		$output = curl_exec($ch);
+		curl_close($ch);
+		
+		if (empty($output)) {
+			throw new \Exception("REDCap API response is empty when trying to get remote project title.");
+		}
+		try {
+			$obj = json_decode($output);
+		}
+		catch (\Exception $e) {
+			throw new \Exception("Couldn't convert REDCap API JSON response to object.");
+		}
+		
+		return $obj->project_title;
+	}
+
 }
 
 // Shim for function that doesn't exist until php 7.

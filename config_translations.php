@@ -68,23 +68,18 @@ function printTranslationsTable($translations = [], $type) {
 }
 
 function printProjectCard($project_info) {
+	$settings_prefix = $project_info['server-type'] == 'export' ? 'export-' : '';
 	?>
 	<div class='card'>
 		<div class='card-title m-3'>
-			<h3 class='pb-1'><?= ucfirst($project_info['server-type']) ?> Server #<?= $project_info['server-index'] ?> - Project #<?= $project_info['project-index'] ?></h3>
+			<h3 class='pb-1'><span class='server-type'><?= ucfirst($project_info['server-type']); ?></span> Project <?= $project_info['project-index'] . ': ' . $project_info["{$settings_prefix}project-name"] ?></h3>
 			<span>Server URL: </span><b><span class='server-url'><?= $project_info['url'] ?></span></b>
-			<br>
-			<span>API Key: </span><b><span class='project-api-key'><?= $project_info['api-key'] ?></span></b>
-			<span class='server-type'><?= $project_info['server-type'] ?></span>
+			<span class='project-api-key'><?= $project_info['api-key'] ?></span>
 		</div>
 		<div class='loader-container'><div class='loader'></div></div>
 		<?php
 		foreach (['form', 'event'] as $type) {
-			if ($project_info['server-type'] == 'export') {
-				$translations = json_decode($project_info["export-$type-translations"]);
-			} else {
-				$translations = json_decode($project_info["$type-translations"]);
-			}
+			$translations = json_decode($project_info["$settings_prefix$type-translations"]);
 			printTranslationsTable($translations, $type);
 		}
 		?>
@@ -115,6 +110,7 @@ if (empty($import_servers) and empty($export_servers)) {
 foreach ($import_servers as $server_i => $server) {
 	$url = $server['redcap-url'];
 	foreach ($server['projects'] as $project_i => $project) {
+		$project['project-name'] = @$module->getRemoteProjectTitle($url, $project['api-key']);
 		$project['url'] = $url;
 		$project['server-index'] = $server_i + 1;
 		$project['server-type'] = 'import';
