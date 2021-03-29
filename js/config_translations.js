@@ -55,7 +55,7 @@ $(document).ready(function() {
 		$(this).closest('.card-body').prev('div.table-controls').find('.remove-btn').removeClass('btn-outline-primary').addClass('btn-primary');
 		event.stopPropagation();
 	});
-	$('body').on('click', '.translations-tbl th', function(event) {
+	$('body').on('click', '.translations-tbl:not(.export) th', function(event) {
 		// remove existing highlights
 		$('tr, td, th').removeClass('highlight');
 		

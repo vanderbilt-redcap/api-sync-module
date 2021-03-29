@@ -21,16 +21,19 @@ require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
 $export_servers = $module->getSubSettings('export-servers');
 $import_servers = $module->getSubSettings('servers');
 
-function printTranslationsTable($translations = [], $type) {
+function printTranslationsTable($translations = [], $type, $server_type) {
 	$row_count = count($translations);
 	if (!empty($row_count)) {
 		$column_count = count($translations[0]);
+	}
+	if ($server_type == 'export') {
+		$column_count = 2;
 	}
 	
 	?>
 	<div class='table-controls ml-3'>
 		<button type='button' class='btn btn-outline-primary btn-sm add-row-btn'>+ Row</button>
-		<button type='button' class='btn btn-outline-primary btn-sm add-col-btn'>+ Column</button>
+		<?php if ($server_type != 'export') { ?> <button type='button' class='btn btn-outline-primary btn-sm add-col-btn'>+ Column</button> <?php } ?>
 		<button type='button' class='btn btn-outline-primary btn-sm remove-btn'>- Remove</button>
 		<button type='button' class='btn btn-outline-info btn-sm save-btn mx-3' data-translation-type='<?= $type ?>'>Save</button>
 		<button type='button' class='btn btn-outline-info btn-sm export-btn'>Export</button>
@@ -38,7 +41,7 @@ function printTranslationsTable($translations = [], $type) {
 	</div>
 	<div class='card-body'>
 		<h4><?= ucfirst($type) ?> Translations Table</h4>
-		<table class='table translations-tbl'>
+		<table class='table translations-tbl <?=$server_type?>'>
 			<thead>
 				<tr>
 					<th>Local <?= ucfirst($type) ?> Name</th>
@@ -56,7 +59,8 @@ function printTranslationsTable($translations = [], $type) {
 			<tbody>
 				<?php foreach($translations as $row) {
 					echo "<tr class='border-bottom'>";
-					foreach($row as $name) {
+					for ($col_index = 1; $col_index <= $column_count; $col_index++) {
+						$name = $row[$col_index-1];
 						echo "<td><textarea>$name</textarea></td>";
 					}
 					echo "</tr>";
@@ -80,7 +84,7 @@ function printProjectCard($project_info) {
 		<?php
 		foreach (['form', 'event'] as $type) {
 			$translations = json_decode($project_info["$settings_prefix$type-translations"]);
-			printTranslationsTable($translations, $type);
+			printTranslationsTable($translations, $type, $project_info['server-type']);
 		}
 		?>
 	</div>
