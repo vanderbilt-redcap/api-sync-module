@@ -1,8 +1,12 @@
 $(document).ready(function() {
 	api_sync_module.rename_columns = function(table) {
+		var col_name = "Source Name";
+		if ($(table).hasClass('export')) {
+			col_name = "Destination Name";
+		}
 		$(table).find('th').each(function(i, th) {
 			if (i != 0) {
-				$(th).text('Translated Name #' + i);
+				$(th).text(col_name);
 			}
 		});
 	}
@@ -133,7 +137,8 @@ $(document).ready(function() {
 		
 		$.ajax({
 			type: 'POST',
-			url: '?prefix=api_sync&page=config_translations&pid=' + api_sync_module.pid,
+			// url: '?prefix=api_sync&page=config_translations&pid=' + api_sync_module.pid,
+			url: api_sync_module.ajax_endpoint,
 			data: {
 				table_saved: true,
 				translations: tbl_csv,

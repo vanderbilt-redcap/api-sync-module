@@ -161,7 +161,8 @@ foreach ($export_servers as $server_i => $server) {
 			</div>
 			<div class="modal-body">
 				<p>Upload a CSV containing name translations below.<br>The first column should contain names local to this project.<br>Proceeding column values should contain the translated names.</p><br>
-				<form id='translation-file' action='?prefix=api_sync&page=config_translations&pid=<?= $module->getProjectId() ?>' enctype='multipart/form-data' method='POST'>
+				<!--<form id='translation-file' action='?prefix=api_sync&page=config_translations&pid=<?= $module->getProjectId() ?>' enctype='multipart/form-data' method='POST'>-->
+				<form id='translation-file' action='<?= $module->getUrl('config_translations.php'); ?>' enctype='multipart/form-data' method='POST'>
 					<div class="input-group">
 						<div class="custom-file">
 							<input type='hidden' name='project-api-key' id='project-api-key'>
@@ -190,7 +191,8 @@ foreach ($export_servers as $server_i => $server) {
 		import_error_message: "<?= $import_error_message ?>",
 		table_saved_error_message: "<?= $table_saved_error_message ?>",
 		pid: "<?= $module->getProjectId() ?>",
-		translation_table_cell: '<?= $module::TRANSLATION_TABLE_CELL; ?>'
+		translation_table_cell: '<?= $module::TRANSLATION_TABLE_CELL; ?>',
+		ajax_endpoint: '<?= $module->getUrl("config_translations.php"); ?>'
 	}
 </script>
 <script type='text/javascript' src='<?= $module->getUrl('js/config_translations.js') ?>'></script>
