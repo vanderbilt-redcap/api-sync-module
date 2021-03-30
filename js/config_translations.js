@@ -187,7 +187,7 @@ $(document).ready(function() {
 		
 		$("input#project-api-key").val(proj_api_key);
 		$("input#server-url").val(server_url);
-		$("input#server-type").val(server_type);
+		$("input#server-type").val(server_type.toLowerCase());
 		$("input#translations-type").val(translations_type);
 		
 		$("#import-translations").modal("show");

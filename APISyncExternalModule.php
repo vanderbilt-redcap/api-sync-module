@@ -1118,6 +1118,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$translation_matrix = [];
 		foreach(preg_split("/((\r?\n)|(\r\n?))/", $translations) as $line){
 			$translation_matrix[] = str_getcsv(db_escape($line));
+			foreach($translation_matrix as &$arr) {
+				foreach ($arr as $i => $name) {
+					$arr[$i] = trim($name);
+				}
+			}
 		}
 		
 		// save translations to appropriate setting key/index
@@ -1220,17 +1225,16 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$output = curl_exec($ch);
 		curl_close($ch);
 		
-		if (empty($output)) {
-			throw new \Exception("REDCap API response is empty when trying to get remote project title.");
-		}
 		try {
 			$obj = json_decode($output);
 		}
 		catch (\Exception $e) {
-			throw new \Exception("Couldn't convert REDCap API JSON response to object.");
+			// bad json
 		}
-		
-		return $obj->project_title;
+		if (!empty($obj->project_title)) {
+			return $obj->project_title;
+		}
+		return "";
 	}
 
 }

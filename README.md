@@ -1,3 +1,5 @@
+
+
 # API Sync
 
 Automates exporting/importing to/from remote REDCap servers via the API.  The Data Dictionaries for the local and remote projects are expected to be either identical or compatible.  This module could easily be expanded to support additional scenarios (like automatically syncing the data dictionary as well).
@@ -13,7 +15,7 @@ The first column of a configured form/event table should contain the names of th
 
 The following columns should contain form/event names used in source projects. When importing data, the module tries to find form/event names listed in the source columns. If a match is found, the name in the data is translated to the name in the first column.
 
-An example project configured with the following table would convert the form names "Primera Forma" or "Первая форма" to "First Form" and "Otra Form" or "Другая форма" to "Another Form"
+An example project configured with the following table would convert the form names "Primera Forma" or "A 'chiad Fhoirm" to "First Form" and "Otra Form" or "Foirm eile" to "Another Form"
 
 ![Configuring import translations](/readme/import_forms.PNG)
 
@@ -23,6 +25,20 @@ Export tables are similar to import tables except they can contain only two colu
 
 For this reason, there is no '+ Column' button and columns cannot be removed.
 
-In the following example table, the module is configured to convert the 'First Form' form name to 'Their Form Name' before exporting data.
+In the following example table, the module is configured to convert the 'First Form' form name to 'Their Form Name' and 'Other Form' to 'Their Other Form' before exporting data.
 
 ![Configuring export translations](/readme/export_forms.PNG)
+### Note: Form and Event Names in REDCap
+REDCap forms and events have two names. A display name and a unique name. The unique name is usually not shown to users but it's how REDCap refers to forms and events internally. You may use either in the 'Configure Translations' tables -- the module can usually determine the correct unique name for a given display name.
+
+The module won't be able to determine the unique name in the following cases:
+
+ 1. The display name contains only non-Latin characters. 
+
+	In this case, REDCap will generate a unique form name using random characters. The module won't be able to guess the unique form name in this case.
+
+ 2. The remote instance of REDCap contains multiple forms/events with the same display name.
+
+	In this case, REDCap will append some random characters to make the unique name unique for that form/event.
+
+Using the display name in the above cases will cause imports/exports to fail. The workaround is to determine the unique names for the forms/events and use those instead. You can determine these unique names, for instance, by exporting the raw data as CSV and finding the names within the exported file.

@@ -65,6 +65,7 @@ function printTranslationsTable($translations = [], $type, $server_type) {
 					echo "<tr class='border-bottom'>";
 					for ($col_index = 1; $col_index <= $column_count; $col_index++) {
 						$name = trim($row[$col_index-1]);
+						$name = str_replace("\\", "", $name);
 						echo "<td><textarea>$name</textarea></td>";
 					}
 					echo "</tr>";
@@ -111,6 +112,7 @@ if (empty($import_servers) and empty($export_servers)) {
 		<p>For each table, the first column should hold the name of forms and events that exist on this project.</p>
 		<p>For import tables, columns past the first column should hold the names of forms or events that you want the API Sync module to translate upon import. Each value will be translated to the name in the first column.</p>
 		<p>For export tables, the API Sync module converts this project's form and event names in the first column to the value in the second column upon export.</p>
+		<p>Click table cells to select rows. Click column names to select columns. Selected rows or columns can be removed.</p>
 	</div>
 	<?php
 }
@@ -118,7 +120,7 @@ if (empty($import_servers) and empty($export_servers)) {
 foreach ($import_servers as $server_i => $server) {
 	$url = $server['redcap-url'];
 	foreach ($server['projects'] as $project_i => $project) {
-		$project['project-name'] = @$module->getRemoteProjectTitle($url, $project['api-key']);
+		$project['project-name'] = $module->getRemoteProjectTitle($url, $project['api-key']);
 		$project['url'] = $url;
 		$project['server-index'] = $server_i + 1;
 		$project['server-type'] = 'import';
