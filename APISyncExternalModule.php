@@ -843,11 +843,26 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			throw new Exception("CURL Error: $error");
 		}
 
+		$decodedOutput = json_decode($output, true);
+
 		if($httpCode !== 200){
-			throw new Exception("HTTP error code $httpCode received: $output");
+			if(
+				$httpCode === 400
+				&&
+				$data['action'] === 'delete'
+				&&
+				$decodedOutput['error'] === $GLOBALS['lang']['api_131'] . ' ' . $data['records'][0]
+			){
+				/**
+				 * Do nothing.  This likely means the record was already manually deleted in the destination project,
+				 * and can safely be ignored.
+				 */
+			}
+			else{
+				throw new Exception("HTTP error code $httpCode received: $output");
+			}
 		}
 
-		$decodedOutput = json_decode($output, true);
 		if(!$decodedOutput){
 			throw new Exception("An unexpected response was returned: $output");
 		}
