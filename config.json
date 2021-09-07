@@ -96,13 +96,13 @@
 						},
 						{
 							"key": "export-form-translations",
-							"name": "JSON matrix containing form name tranlsations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+							"name": "JSON matrix containing form name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
 							"type": "text",
 							"hidden": true
 						},
 						{
 							"key": "export-event-translations",
-							"name": "JSON matrix containing event name tranlsations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+							"name": "JSON matrix containing event name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
 							"type": "text",
 							"hidden": true
 						}
@@ -164,13 +164,13 @@
 						},
 						{
 							"key": "form-translations",
-							"name": "JSON matrix containing form name tranlsations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+							"name": "JSON matrix containing form name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
 							"type": "text",
 							"hidden": true
 						},
 						{
 							"key": "event-translations",
-							"name": "JSON matrix containing event name tranlsations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+							"name": "JSON matrix containing event name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
 							"type": "text",
 							"hidden": true
 						}
