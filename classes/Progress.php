@@ -47,7 +47,8 @@ class Progress
         $url = $this->getCurrentServerUrl();
         if($url === null){
             // There are no projects.
-            return null;
+            $null = null; // This var is required to return null in a function that returns a reference.
+            return $null;
         }
 
         $projects =& $this->data[$url];
