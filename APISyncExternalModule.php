@@ -58,12 +58,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		$servers = $this->framework->getSubSettings('export-servers');
 
-		$firstServer = $servers[0];
-		$firstProject = @$firstServer['export-projects'][0];
+		$firstServer = $servers[0] ?? null;
+		$firstProject = $firstServer['export-projects'][0] ?? null;
 		if($this->areAnyEmpty([
-			@$firstServer['export-redcap-url'],
-			@$firstProject['export-api-key'],
-			@$firstProject['export-project-name']
+			$firstServer['export-redcap-url'] ?? null,
+			$firstProject['export-api-key'] ?? null,
+			$firstProject['export-project-name'] ?? null
 		])){
 			return;
 		}
