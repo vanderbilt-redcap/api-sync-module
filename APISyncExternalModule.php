@@ -22,7 +22,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	const MAX_LOG_QUERY_PERIOD = '1 week';
 
 	function cron($cronInfo){
-		$originalPid = $_GET['pid'];
+		$originalPid = $_GET['pid'] ?? null;
 
 		$cronName = $cronInfo['cron_name'];
 
