@@ -44,7 +44,7 @@
 
 		#api-sync-module-wrapper .top-button-container button{
 			margin: 3px;
-			min-width: 160px;
+			min-width: 200px;
 		}
 
 		#api-sync-module-wrapper th{
@@ -107,6 +107,8 @@
 		<button class="api-sync-clear-export-queue-button">Clear Export Queue</button> - Unqueues any records currently queued for export.
 		<br>
 		<button class="api-sync-cancel-export-button">Cancel Export</button> - Cancels the active export.
+		<br>
+		<button class="api-sync-delete-request-content-logs">Delete Request Content Logs</button> - Deletes all logs created by the "Log request contents" setting.
 		<?php
 		$module->renderSyncNowHtml();
 		?>
@@ -125,6 +127,10 @@
 
 		$(function(){
 			var ajaxRequest = function(args) {
+				if(args.successMessageSuffix === undefined){
+					args.successMessageSuffix = '  Check this page again after about a minute to see export progress logs.'
+				}
+
 				var spinnerElement = $('<div class="api-sync-module-spinner"></div>')[0]
 				new Spinner().spin(spinnerElement)
 
@@ -144,7 +150,7 @@
 
 					setTimeout(function () {
 						if (response === 'success') {
-							Swal.fire('', args.successMessage + '  Check this page again after about a minute to see export progress logs.')
+							Swal.fire('', args.successMessage + args.successMessageSuffix)
 						}
 						else {
 							Swal.fire('', 'An error occurred.  Please see the browser console for details.')
@@ -183,6 +189,15 @@
 					url: <?=json_encode($module->getUrl('cancel-export.php'))?>,
 					loadingMessage: 'Cancelling the current export...',
 					successMessage: 'The current export has been cancelled and will stop after the current sub-batch finishes.'
+				})
+			})
+
+			$('.api-sync-delete-request-content-logs').click(function(){
+				ajaxRequest({
+					url: <?=json_encode($module->getUrl('delete-request-content-logs.php'))?>,
+					loadingMessage: 'Deleting request content logs...',
+					successMessage: 'Request content logs have been successfully deleted.',
+					successMessageSuffix: ''
 				})
 			})
 		})
