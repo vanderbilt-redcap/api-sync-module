@@ -327,7 +327,18 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$url = $server['export-redcap-url'];
 			$logUrl = $this->formatURLForLogs($url);
 
-			foreach ($server['export-projects'] as $project) {
+			$projects = $server['export-projects'];
+			$incorrectlyLocatedFieldLists = $projects['export-field-list'] ?? null;
+			if($incorrectlyLocatedFieldLists !== null){
+				// Recover from a getSubSettings() bug which was fixed in framework version 9.
+				foreach ($projects as $i=>&$project) {
+					$project['export-field-list'] = $incorrectlyLocatedFieldLists[$i];
+				}
+
+				unset($projects['export-field-list']);
+			}
+
+			foreach ($projects as $project) {
 				$getProjectExportMessage = function($action) use ($type, $subBatchNumber, $logUrl, $project){
 					return "
 						<div>$action exporting $type sub-batch $subBatchNumber to the following project at $logUrl:</div>
@@ -341,7 +352,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 				$args = ['content' => 'record'];
 				
-
 				if($type === self::UPDATE){
 					$prepped_data = $this->prepareData($project, $data, $recordIdFieldName);
 					$args['overwriteBehavior'] = 'overwrite';
@@ -640,20 +650,55 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		
 		$proj_key_prefix = $this->getProjectTypePrefix($project);
 		$prefix = $project[$proj_key_prefix . 'record-id-prefix'];
-		if ($prefix) {
-			$metadata = $this->getMetadata($this->getProjectId());
-			$formNamesByField = [];
-			foreach($metadata as $fieldName=>$field){
-				$formNamesByField[$fieldName] = $field['form_name'];
+		$metadata = $this->getMetadata($this->getProjectId());
+		$formNamesByField = [];
+		foreach($metadata as $fieldName=>$field){
+			$formNamesByField[$fieldName] = $field['form_name'];
+		}
+
+		foreach($data as &$instance){
+			if ($prefix) {
+				$instance[$recordIdFieldName] = $prefix . $instance[$recordIdFieldName];
 			}
 
-			foreach($data as &$instance){
-				$instance[$recordIdFieldName] = $prefix . $instance[$recordIdFieldName];
+			$this->removeInvalidIncompleteStatuses($instance, $formNamesByField);
+			$this->filterByFieldList($project, $instance);
+		}
+		
+		return $data;
+	}
 
-				$this->removeInvalidIncompleteStatuses($instance, $formNamesByField);
+	private function filterByFieldList($project, &$instance){
+		$type = $project['export-field-list-type'] ?? null;
+		$fieldList = $project['export-field-list'] ?? [];
+
+		if($type === 'include'){
+			$includedFields = array_flip(array_merge($fieldList, $this->getREDCapIdentifierFields()));
+
+			foreach(array_keys($instance) as $field){
+				if(!isset($includedFields[$field])){
+					unset($instance[$field]);
+				}
 			}
 		}
-		return $data;
+		else if($type === 'exclude'){
+			foreach($fieldList as $field){
+				unset($instance[$field]);
+			}
+		}
+	}
+
+	private function getREDCapIdentifierFields(){
+		if(!isset($this->redcapIdentifierFields)){
+			$this->redcapIdentifierFields = [
+				$this->getRecordIdField(),
+				'redcap_event_name',
+				'redcap_repeat_instrument',
+				'redcap_repeat_instance'
+			];
+		}
+
+		return $this->redcapIdentifierFields;
 	}
 
 	private function removeInvalidIncompleteStatuses(&$instance, $formNamesByField){

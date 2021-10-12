@@ -95,6 +95,27 @@
 							"type": "text"
 						},
 						{
+							"key": "export-field-list-type",
+							"name": "<b>Field List Type</b> - If left blank, the Field List will be ignored",
+							"type": "dropdown",
+							"choices": [
+								{
+									"name": "Include - Only the fields listed below will be exported",
+									"value": "include"
+								},
+								{
+									"name": "Exclude - All fields will be exported except those listed below",
+									"value": "exclude"
+								}
+							]
+						},
+						{
+							"key": "export-field-list",
+							"name": "Field List",
+							"type": "field-list",
+							"repeatable": true
+						},
+						{
 							"key": "export-form-translations",
 							"name": "JSON matrix containing form name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
 							"type": "text",

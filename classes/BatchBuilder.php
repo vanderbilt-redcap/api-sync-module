@@ -6,6 +6,7 @@ require_once __DIR__ . '/Batch.php';
 use Exception;
 
 class BatchBuilder {
+    /** @var Batch[] */
     private $batches = [];
     private $batchSize;
 
