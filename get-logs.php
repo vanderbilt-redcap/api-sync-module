@@ -30,7 +30,7 @@ while($row = $results->fetch_assoc()){
 ?>
 
 {
-	"draw": <?=$_GET['draw']?>,
+	"draw": <?=htmlencode($_GET['draw'], ENT_QUOTES)?>,
 	"recordsTotal": <?=$totalRowCount?>,
 	"recordsFiltered": <?=$totalRowCount?>,
 	"data": <?=json_encode($rows)?>
