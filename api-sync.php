@@ -203,11 +203,11 @@
 		})
 
 		$(function(){
-			$.fn.dataTable.ext.errMode = 'throw';
+			$.LoadingOverlay('show') // hide empty table during initial load
 
-			var lastOverlayDisplayTime = 0
+			$.fn.dataTable.ext.errMode = 'throw';
 			var table = $('#api-sync-module-log-entries').DataTable({
-				"pageLength": 100,
+				"pageLength": 10,
 		        "processing": true,
 		        "serverSide": true,
 		        "ajax": {
@@ -277,14 +277,9 @@
 		    }).on( 'processing.dt', function(e, settings, processing){
 		    	if(processing){
 					$.LoadingOverlay('show')
-					lastOverlayDisplayTime = Date.now()
 		    	}
 		    	else{
-		    		var secondsSinceDisplay = Date.now() - lastOverlayDisplayTime
-		    		var delay = Math.max(300, secondsSinceDisplay)
-		    		setTimeout(function(){
-						$.LoadingOverlay('hide')
-		    		}, delay)
+		    		$.LoadingOverlay('hide')
 		    	}
 		    })
 
