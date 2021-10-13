@@ -21,6 +21,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	const DATA_VALUES_MAX_LENGTH = (2^16) - 1;
 	const MAX_LOG_QUERY_PERIOD = '1 week';
 
+	private $settingPrefix;
+
 	function cron($cronInfo){
 		$originalPid = $_GET['pid'] ?? null;
 
@@ -29,6 +31,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		foreach($this->framework->getProjectsWithModuleEnabled() as $localProjectId){
 			// This automatically associates all log statements with this project.
 			$_GET['pid'] = $localProjectId;
+
+			$this->settingPrefix = substr($cronName, 0, -1); // remove the 's'
 
 			if($cronName === 'exports'){
 				$this->handleExports();
@@ -320,6 +324,23 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
+	function getProjects($server){
+		$fieldListSettingName = $this->getPrefixedSettingName("field-list");
+		$projects = $server[$this->getPrefixedSettingName("projects")];
+
+		$incorrectlyLocatedFieldLists = $projects[$fieldListSettingName] ?? null;
+		if($incorrectlyLocatedFieldLists !== null){
+			// Recover from a getSubSettings() bug which was fixed in framework version 9.
+			foreach ($projects as $i=>&$project) {
+				$project[$fieldListSettingName] = $incorrectlyLocatedFieldLists[$i];
+			}
+
+			unset($projects[$fieldListSettingName]);
+		}
+
+		return $projects;
+	}
+
 	private function exportSubBatch($servers, $type, $data, $subBatchNumber){
 		$recordIdFieldName = $this->getRecordIdField();
 
@@ -327,18 +348,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$url = $server['export-redcap-url'];
 			$logUrl = $this->formatURLForLogs($url);
 
-			$projects = $server['export-projects'];
-			$incorrectlyLocatedFieldLists = $projects['export-field-list'] ?? null;
-			if($incorrectlyLocatedFieldLists !== null){
-				// Recover from a getSubSettings() bug which was fixed in framework version 9.
-				foreach ($projects as $i=>&$project) {
-					$project['export-field-list'] = $incorrectlyLocatedFieldLists[$i];
-				}
-
-				unset($projects['export-field-list']);
-			}
-
-			foreach ($projects as $project) {
+			foreach ($this->getProjects($server) as $project) {
 				$getProjectExportMessage = function($action) use ($type, $subBatchNumber, $logUrl, $project){
 					return "
 						<div>$action exporting $type sub-batch $subBatchNumber to the following project at $logUrl:</div>
@@ -565,7 +575,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $hour === $currentHour;
 	}
 
-	function importNextBatch(&$progress){
+	function importNextBatch(Progress &$progress){
 		$project =& $progress->getCurrentProject();
 		if($project === null){
 			// No projects are in progress.
@@ -668,9 +678,28 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $data;
 	}
 
+	private function getPrefixedSettingName($name){
+		$prefix = $this->settingPrefix;
+
+		if(
+			// At some point it might make sense to refactor other references to use this function
+			// and add more items to this array.
+			in_array($name, ['projects'])
+			&&
+			$prefix === 'import'
+		){
+			// This setting predated the prefixing.  Do not prepend the prefix.
+		}
+		else{
+			$name = "$prefix-$name";
+		}
+
+		return $name;
+	}
+
 	private function filterByFieldList($project, &$instance){
-		$type = $project['export-field-list-type'] ?? null;
-		$fieldList = $project['export-field-list'] ?? [];
+		$type = $project[$this->getPrefixedSettingName('field-list-type')];
+		$fieldList = $project[$this->getPrefixedSettingName('field-list')] ?? [];
 
 		if($type === 'include'){
 			$includedFields = array_flip(array_merge($fieldList, $this->getREDCapIdentifierFields()));

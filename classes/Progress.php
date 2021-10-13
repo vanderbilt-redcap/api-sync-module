@@ -19,6 +19,10 @@ class Progress
         $this->data = $data;
     }
 
+    function getModule(){
+        return $this->module;
+    }
+
     function addServer($server){
         $projects =& $this->data[$server['redcap-url']];
         if($projects !== null){
@@ -27,7 +31,7 @@ class Progress
         }
 
         $firstOnServer = true;
-        foreach($server['projects'] as $project){
+        foreach($this->getModule()->getProjects($server) as $project){
             if($firstOnServer){
                 $project['log-server-start'] = true;
                 $firstOnServer = false;

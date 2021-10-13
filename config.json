@@ -184,6 +184,27 @@
 							"type": "text"
 						},
 						{
+							"key": "import-field-list-type",
+							"name": "<b>Field List Type</b> - If left blank, the Field List will be ignored",
+							"type": "dropdown",
+							"choices": [
+								{
+									"name": "Include - Only the fields listed below will be imported",
+									"value": "include"
+								},
+								{
+									"name": "Exclude - All fields will be imported except those listed below",
+									"value": "exclude"
+								}
+							]
+						},
+						{
+							"key": "import-field-list",
+							"name": "Field List",
+							"type": "field-list",
+							"repeatable": true
+						},
+						{
 							"key": "form-translations",
 							"name": "JSON matrix containing form name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
 							"type": "text",
