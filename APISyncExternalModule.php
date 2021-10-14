@@ -22,6 +22,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	const MAX_LOG_QUERY_PERIOD = '1 week';
 
 	function cron($cronInfo){
+		/**
+		 * We know 2g is required to prevent exports from crashing on the SAMMC project.
+		 * This was set to 4g somewhat arbitrarily.  Hopefully that will cover many potential future use cases.
+		 */
+		ini_set('memory_limit', '4g');
+
 		$originalPid = $_GET['pid'] ?? null;
 
 		$cronName = $cronInfo['cron_name'];
