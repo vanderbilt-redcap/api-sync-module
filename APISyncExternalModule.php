@@ -463,7 +463,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 	private function handleException($e){
 		$this->log("An error occurred.  Click 'Show Details' for more info.", [
-			'details' => $e->getMessage() . "\n" . $e->getTraceAsString()
+			'details' => $e->getMessage() . "\n\n" . $e->getTraceAsString()
 		]);
 
 		$this->sendErrorEmail("The API Sync module has encountered an error on project " . $this->getProjectId() . ".  If this error is not addressed within " . self::MAX_LOG_QUERY_PERIOD . ", some changes will not be automatically synced.");
@@ -865,6 +865,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				 */
 			}
 			else{
+				if(is_array($decodedOutput)){
+					// If the output is valid JSON, include a more readable version of it in the exception.
+					$output = json_encode($decodedOutput, JSON_PRETTY_PRINT);
+				}
+
 				throw new Exception("HTTP error code $httpCode received: $output");
 			}
 		}
