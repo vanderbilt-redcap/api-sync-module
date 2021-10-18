@@ -1,6 +1,9 @@
 <?php
 
-$result = $module->queryLogs('select details where log_id = ?', $_GET['log-id']);
+// Cast to an int to make UC Denver's security scanner happy for SAVE-O2
+$logId = (int) $_GET['log-id'];
+
+$result = $module->queryLogs('select details where log_id = ?', $logId);
 $row = $result->fetch_assoc();
 
 if($row === false){
