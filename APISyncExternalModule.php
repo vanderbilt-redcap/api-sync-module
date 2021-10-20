@@ -401,13 +401,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$size = $this->getProjectSetting('export-sub-batch-size');
 		if($size === null){
 			/**
-			 * A 7MB limit was originally added to avoid 16MB API requests from being truncated
+			 * A 7MB limit was added semi-arbitrarily.  We know requests greater than 16MB were truncated
 			 * and returning an empty error message when OSHU was attempting to push to Vanderbilt.
-			 * However, 7MB didn't work when testing API calls from redcap.vanderbilt.edu to itself
-			 * on project 122799, so we lowered this to 1MB.  Each request still took about 3 minutes
-			 * on that project, so 1MB might be a more appropriate default.
+			 * This value might be heavily dependent on the networks/firewalls between each specific source & destination.
 			 */
-			$size = 1;
+			$size = 7;
 		}
 
 		// Return the size in bytes
