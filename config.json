@@ -114,18 +114,6 @@
 							"name": "Field List",
 							"type": "field-list",
 							"repeatable": true
-						},
-						{
-							"key": "export-form-translations",
-							"name": "JSON matrix containing form name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
-							"type": "text",
-							"hidden": true
-						},
-						{
-							"key": "export-event-translations",
-							"name": "JSON matrix containing event name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
-							"type": "text",
-							"hidden": true
 						}
 					]
 				}
@@ -203,18 +191,6 @@
 							"name": "Field List",
 							"type": "field-list",
 							"repeatable": true
-						},
-						{
-							"key": "form-translations",
-							"name": "JSON matrix containing form name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
-							"type": "text",
-							"hidden": true
-						},
-						{
-							"key": "event-translations",
-							"name": "JSON matrix containing event name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
-							"type": "text",
-							"hidden": true
 						}
 					]
 				}
@@ -230,7 +206,7 @@
 				"show-header-and-footer": true
 			},
 			{
-				"name": "Configure Translations",
+				"name": "API Sync - Configure Translations",
 				"icon": "databases_arrow",
 				"url": "config_translations.php",
 				"show-header-and-footer": false
