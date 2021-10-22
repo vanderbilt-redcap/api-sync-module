@@ -57,6 +57,6 @@ class BatchBuilder {
     }
 
     private function getCurrentBatch(){
-        return @$this->batches[count($this->batches)-1];
+        return $this->batches[count($this->batches)-1] ?? null;
     }
 }
