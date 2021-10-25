@@ -1122,7 +1122,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			'export-event-translations'
 		];
 		foreach($translation_settings as $name) {
-			if (gettype($project[$name]) == 'array') {
+			if (gettype($project[$name] ?? null) == 'array') {
 				return true;
 			}
 		}
