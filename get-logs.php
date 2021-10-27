@@ -2,13 +2,6 @@
 $start = $_GET['start'];
 $end = $_GET['end'];
 
-$ONE_DAY = 60*60*24;
-$diff = strtotime($end) - strtotime($start);
-$maxDays = 90;
-if($diff > $ONE_DAY*$maxDays){
-	die("Date ranges are currently limited to $maxDays days.");
-}
-
 $hasDetailsClause = "details = ''";
 
 if(version_compare(REDCAP_VERSION, '10.8.2', '<')){
