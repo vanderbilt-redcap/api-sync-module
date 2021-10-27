@@ -2,7 +2,7 @@
 $start = $_GET['start'];
 $end = $_GET['end'];
 
-$hasDetailsClause = "details = ''";
+$hasDetailsClause = "details != ''";
 
 if(version_compare(REDCAP_VERSION, '10.8.2', '<')){
 	// This REDCap version does not support functions or comparisons in select log queries.
@@ -24,5 +24,5 @@ while($row = $results->fetch_assoc()){
 ?>
 
 {
-	"data": <?=json_encode($rows)?>
+	"data": <?=json_encode($rows, JSON_PRETTY_PRINT)?>
 }
