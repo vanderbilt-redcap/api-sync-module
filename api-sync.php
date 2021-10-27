@@ -47,6 +47,12 @@
 			min-width: 200px;
 		}
 
+		#api-sync-module-wrapper > label{
+			min-width: 70px;
+			margin-right: 5px;
+			text-align: right;
+		}
+
 		#api-sync-module-wrapper th{
 			font-weight: bold;
 		}
@@ -116,6 +122,15 @@
 
 	<h5>Recent Log Entries</h5>
 	<p>(refresh the page to see the latest)</p>
+
+	<?php
+	$start = (new DateTime())->sub(date_interval_create_from_date_string('7 days'))->format('Y-m-d');
+	$end = (new DateTime())->format('Y-m-d');
+	?>
+
+	<label>Start Date</label><input name='start' type='date' value='<?=$start?>'><br>
+	<label>End Date</label><input name='end' type='date' value='<?=$end?>'><br>
+	<br>
 
 	<table id="api-sync-module-log-entries" class="table table-striped table-bordered"></table>
 
@@ -205,13 +220,28 @@
 		$(function(){
 			$.LoadingOverlay('show') // hide empty table during initial load
 
+			const wrapper = $('#api-sync-module-wrapper')
+			const startInput = wrapper.find('input[name=start]')
+			const endInput = wrapper.find('input[name=end]')
+
 			$.fn.dataTable.ext.errMode = 'throw';
 			var table = $('#api-sync-module-log-entries').DataTable({
 				"pageLength": 10,
-		        "processing": true,
-		        "serverSide": true,
-		        "ajax": {
-					url: <?=json_encode($module->getUrl('get-logs.php'))?>
+				"processing": true,
+				"ajax": {
+					url: <?=json_encode($module->getUrl('get-logs.php'))?>,
+					data: data => {
+						data.start = startInput.val()
+						data.end = endInput.val()
+					},
+					error: function (jqXHR, textStatus, errorThrown) {
+						$.LoadingOverlay('hide')
+
+						Swal.fire({
+							title: 'Error',
+							text: jqXHR.responseText
+						})
+					}
 				},
 				"autoWidth": false,
 				"searching": false,
@@ -282,6 +312,9 @@
 		    		$.LoadingOverlay('hide')
 		    	}
 		    })
+
+			startInput.change(() => table.ajax.reload())
+			endInput.change(() => table.ajax.reload())
 
 			$.LoadingOverlaySetup({
 				'background': 'rgba(30,30,30,0.7)'

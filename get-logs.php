@@ -1,12 +1,13 @@
 <?php
-$offset = \db_real_escape_string($_GET['start']);
-$limit = \db_real_escape_string($_GET['length']);
-$limitClause = "limit $limit offset $offset";
+$start = $_GET['start'];
+$end = $_GET['end'];
 
-$columnName = 'count(1)';
-$result = $module->queryLogs("select $columnName");
-$row = db_fetch_assoc($result);
-$totalRowCount = $row[$columnName];
+$ONE_DAY = 60*60*24;
+$diff = strtotime($end) - strtotime($start);
+$maxDays = 90;
+if($diff > $ONE_DAY*$maxDays){
+	die("Date ranges are currently limited to $maxDays days.");
+}
 
 $hasDetailsClause = "details = ''";
 
@@ -17,10 +18,10 @@ if(version_compare(REDCAP_VERSION, '10.8.2', '<')){
 }
 
 $results = $module->queryLogs("
-select log_id, timestamp, message, failure, $hasDetailsClause as hasDetails
-order by log_id desc
-$limitClause
-");
+	select log_id, timestamp, message, failure, $hasDetailsClause as hasDetails
+	where timestamp >= ? and timestamp <= ?
+	order by log_id desc
+", [$start, $end]);
 
 $rows = [];
 while($row = $results->fetch_assoc()){
@@ -30,8 +31,5 @@ while($row = $results->fetch_assoc()){
 ?>
 
 {
-	"draw": <?=htmlentities($_GET['draw'], ENT_QUOTES)?>,
-	"recordsTotal": <?=$totalRowCount?>,
-	"recordsFiltered": <?=$totalRowCount?>,
 	"data": <?=json_encode($rows)?>
 }
