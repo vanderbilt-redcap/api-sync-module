@@ -244,12 +244,13 @@
 					}
 				},
 				"autoWidth": false,
-				"searching": false,
+				"searching": true,
 				"order": [[ 0, "desc" ]],
 				"columns": [
 					{
 						data: 'timestamp',
-						title: 'Date/Time'
+						title: 'Date/Time',
+						width: 125
 					},
 					{
 						data: 'message',
