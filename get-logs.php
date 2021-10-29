@@ -1,7 +1,6 @@
 <?php
 $start = $_GET['start'];
-$end = $_GET['end'];
-
+$end = date('Y-m-d', strtotime($_GET['end'] . ' + 1 day'));
 $hasDetailsClause = "details != ''";
 
 if(version_compare(REDCAP_VERSION, '10.8.2', '<')){
@@ -12,7 +11,7 @@ if(version_compare(REDCAP_VERSION, '10.8.2', '<')){
 
 $results = $module->queryLogs("
 	select log_id, timestamp, message, failure, $hasDetailsClause as hasDetails
-	where timestamp >= ? and timestamp <= ?
+	where timestamp >= ? and timestamp < ?
 	order by log_id desc
 ", [$start, $end]);
 
