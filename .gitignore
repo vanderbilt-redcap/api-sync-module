@@ -3,3 +3,4 @@
 /ignore/
 /vendor/
 composer*
+/.vscode/launch.json
