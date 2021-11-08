@@ -292,7 +292,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 					for($rowIndex=0; $rowIndex<count($data); $rowIndex++){
 						$row = $data[$rowIndex];
 						foreach($batch->getFields() as $field){
-							if(!isset($fieldsByRecord[$row[$recordIdFieldName]][$field])){
+							if(
+								$field !== $recordIdFieldName
+								&& 
+								!isset($fieldsByRecord[$row[$recordIdFieldName]][$field])
+							){
 								// This field didn't change for this record, so don't include it in the export.
 								unset($row[$field]);
 							}
