@@ -875,16 +875,24 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $response['project_title'];
 	}
 
+	private function isLocalhost($domainAndPath){
+		$parts = explode('/', $domainAndPath);
+		$domain = $parts[0];
+		$ip = gethostbyname($domain);
+		return $ip === '127.0.0.1';
+	}
+
 	private function apiRequest($url, $apiKey, $data){
 		$separator = '://';
 		$parts = explode($separator, $url);
 		$domainAndPath = array_pop($parts);
 		$protocol = array_pop($parts);
+		$destinationIsLocalhost = $this->isLocalhost($domainAndPath);
 		
 		if(
 			empty($protocol) // Add https if missing
 			||
-			strpos($domainAndPath, 'localhost') !== 0  // Force non-localhost URLs to use HTTPS to protect API keys.
+			!$destinationIsLocalhost  // Force non-localhost URLs to use HTTPS to protect API keys.
 		){
 			$protocol = 'https';
 		}
@@ -917,7 +925,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$ch = curl_init();
 		curl_setopt($ch, CURLOPT_URL, $url);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, !$destinationIsLocalhost);
 		curl_setopt($ch, CURLOPT_VERBOSE, 0);
 		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 		curl_setopt($ch, CURLOPT_AUTOREFERER, true);
