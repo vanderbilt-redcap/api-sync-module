@@ -934,7 +934,29 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		curl_setopt($ch, CURLOPT_FRESH_CONNECT, 1);
 		curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data, '', '&'));
 
-		$output = curl_exec($ch);
+		$tries = 0;
+		while($tries < 3){
+			$output = curl_exec($ch);
+			$errorNumber = curl_errno($ch);
+
+			if($errorNumber === 56){
+				/**
+				 * This is a CURLE_RECV_ERROR like "SSL read" or "TCP connection reset by peer".
+				 * These are most often cause by temporary network issues.
+				 * Wait a few seconds and try again.
+				 */
+				sleep(3);
+			}
+			else{
+				/**
+				 * Either the request succeeded, or there was some other type of error.
+				 * Either way, don't retry
+				 */
+				break;
+			}
+
+			$tries++;
+		}
 
 		$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 		$error = curl_error($ch);
@@ -942,7 +964,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		curl_close($ch);
 
 		if(!empty($error)){
-			throw new Exception("CURL Error: $error");
+			throw new Exception("CURL Error $errorNumber: $error");
 		}
 
 		$decodedOutput = json_decode($output, true);
