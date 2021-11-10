@@ -966,6 +966,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		if(!empty($error)){
 			throw new Exception("CURL Error $errorNumber: $error");
 		}
+		else if(empty($output)){
+			throw new Exception("An empty response was received.  Automatic batch sizes may be too large, causing the remote server to run out of memory when parsing the request.  Please try reducing the batch or sub-batch size, and report this error to datacore@vumc.org so automatic batch size detection can be improved in this case.");
+		}
 
 		$decodedOutput = json_decode($output, true);
 
