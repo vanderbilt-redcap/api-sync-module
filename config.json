@@ -158,6 +158,11 @@
 					"type": "text"
 				},
 				{
+					"key": "last-import-time",
+					"name": "Last Import Time - Do <b>NOT</b> modify this setting",
+					"type": "text"
+				},
+				{
 					"key": "projects",
 					"name": "Projects",
 					"type": "sub_settings",

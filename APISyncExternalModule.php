@@ -452,10 +452,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$this->setProjectSetting('last-exported-log-id', $this->getLatestLogId());
 	}
 
+	private function getImportServers(){
+		return $this->framework->getSubSettings('servers');
+	}
+
 	private function handleImports(){
 		$progress = new Progress($this);
 
-		$servers = $this->framework->getSubSettings('servers');
+		$servers = $this->getImportServers();
 		foreach($servers as $server){
 			if($this->isTimeToRunImports($server)){
 				// addServer() will have no effect if the server is already in progress.
@@ -554,7 +558,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$minute = $this->getProjectSetting('export-minute');
 		$hour = $this->getProjectSetting('export-hour');
 
-		return $this->isTimeToRun($minute, $hour);
+		return $this->isTimeToRun($minute, $hour, null);
 	}
 
 	private function isTimeToRunImports($server){
@@ -566,33 +570,78 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		return $this->isTimeToRun(
 			$server['daily-record-import-minute'],
-			$server['daily-record-import-hour']
+			$server['daily-record-import-hour'],
+			$server
 		);
 	}
 
-	private function isTimeToRun($minute, $hour){
+	private function isTimeToRun($minute, $hour, $server){
 		if(empty($minute)){
+			// Don't sync if this field is not set
+			return false;
+		}
+		else if(empty($hour)){
+			// We're syncing hourly, so use the current hour.
+			$hour = 'H';
+		}
+
+		if($server === null){
+			$lastRunTime = $this->getProjectSetting('last-export-time');
+		}
+		else{
+			$lastRunTime = $server['last-import-time'];
+		}
+
+		if(empty($lastRunTime)){
+			/**
+			 * This is the first time this sync has run.
+			 * Don't actually sync, but set a last run time to the current time as if we did.
+			 * This is will cause the next scheduled sync to occur normally.
+			 */
+			$this->setLastRunTime(time(), $server);
 			return false;
 		}
 
-		$minute = (int) $minute;
-
-		// We check the cron start time instead of the current time
-		// in case another module's cron job ran us into the next minute.
-		$cronStartTime = $_SERVER["REQUEST_TIME_FLOAT"];
-		$currentMinute = (int) date('i', $cronStartTime);  // The cast is especially important here to get rid of a possible leading zero.
-
-		if($minute !== $currentMinute){
+		$scheduledTime = strtotime(date("Y-m-d $hour:$minute:00"));
+		if(
+			$scheduledTime > time() // Not time to sync yet
+			||
+			/**
+			 * Either the current scheduled sync has already run, or this sync has not run for the first time yet
+			 * and we're waiting for the first scheduled time after the last run time was set initially above.
+			 */
+			$lastRunTime >= $scheduledTime
+		){
 			return false;
 		}
 
-		if(empty($hour)){
-			return true;
-		}
+		// Set the scheduled time instead of the actual run time to simplify checking logic.
+		$this->setLastRunTime($scheduledTime, $server);
 
-		$hour = (int) $hour;
-		$currentHour = (int) date('G', $cronStartTime);
-		return $hour === $currentHour;
+		return true;
+	}
+
+	private function setLastRunTime($scheduledTime, $server){
+		/**
+		 * The string cast is required to prevent the setting config dialog from omitting the value,
+		 * and removing it from the database if settings are saved.
+		 * This is really only needed for imports, but we do it for exports too for consistency.
+		 */
+		$scheduledTime = (string) $scheduledTime;
+
+		if($server === null){
+			$this->setProjectSetting('last-export-time', $scheduledTime);
+		}
+		else{
+			$servers = $this->getImportServers();
+			for($i=0; $i<count($servers); $i++){
+				if($servers[$i]['redcap-url'] === $server['redcap-url']){
+					$importTimes = $this->getProjectSetting('last-import-time');
+					$importTimes[$i] = $scheduledTime;
+					$this->setProjectSetting('last-import-time', $importTimes);
+				}
+			}
+		}
 	}
 
 	function importNextBatch(Progress &$progress){
