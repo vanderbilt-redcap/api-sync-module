@@ -230,7 +230,7 @@
 				"show-header-and-footer": true
 			},
 			{
-				"name": "Configure Translations",
+				"name": "API Sync - Configure Translations",
 				"icon": "databases_arrow",
 				"url": "config_translations.php",
 				"show-header-and-footer": false
