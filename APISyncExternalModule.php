@@ -354,7 +354,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		if($incorrectlyLocatedFieldLists !== null){
 			// Recover from a getSubSettings() bug which was fixed in framework version 9.
 			foreach ($projects as $i=>&$project) {
-				$project[$fieldListSettingName] = $incorrectlyLocatedFieldLists[$i];
+				$project[$fieldListSettingName] = $incorrectlyLocatedFieldLists[$i] ?? null;
 			}
 
 			unset($projects[$fieldListSettingName]);
@@ -806,7 +806,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$formValueCounts[$formName] = 0;
 			}
 
-			$value = @$instance[$fieldName];
+			$value = $instance[$fieldName] ?? null;
 			if(
 				$value !== ''
 				// The following likely means the field only exists in the local project...we'll allow that without an error for now...
@@ -818,7 +818,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		foreach($formValueCounts as $formName=>$count){
 			$completeFieldName = "{$formName}_complete";
-			if($count === 0 && $instance[$completeFieldName] === '0'){
+			if($count === 0 && ($instance[$completeFieldName] ?? null) === '0'){
 				// Remove complete statuses for forms without data.
 				// We do this because REDCap incorrectly introduces incomplete ('0') statuses during export if no status is actually set.
 				// This will misrepresent the case where someone intentionally marked a form as incomplete without setting any data,
