@@ -66,7 +66,7 @@ function printTranslationsTable($translations = [], $type, $server_type) {
 					for ($col_index = 1; $col_index <= $column_count; $col_index++) {
 						$name = trim($row[$col_index-1]);
 						$name = str_replace("\\", "", $name);
-						echo "<td><textarea>$name</textarea></td>";
+						echo "<td><textarea>" . htmlentities($name, ENT_QUOTES) . "</textarea></td>";
 					}
 					echo "</tr>";
 				}?>
