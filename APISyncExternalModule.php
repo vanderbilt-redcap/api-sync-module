@@ -1297,7 +1297,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 						return "Invalid CSV file contents -- each row should contain the same amount of columns.";
 					}
 				}
-				$translation_matrix[] = $csv;
+				$translation_matrix[] = strip_tags(label_decode($csv));
 			}
 		} else {
 			return "Couldn't open the uploaded file.";
@@ -1327,7 +1327,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$translation_matrix[] = str_getcsv(db_escape($line));
 			foreach($translation_matrix as &$arr) {
 				foreach ($arr as $i => $name) {
-					$arr[$i] = trim($name);
+					$arr[$i] = strip_tags(label_decode(trim($name)));
 				}
 			}
 		}
@@ -1340,11 +1340,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		// returns an error string or, settings valid, an array with target project/server information
 		$project_api_key = $_POST['project-api-key'];
 		$server_url = $_POST['server-url'];
-		$server_type = $_POST['server-type'];
+		$server_type = htmlentities($_POST['server-type'], ENT_QUOTES);
 		
 		// validate project_api_key
-		$found_forbidden_char = preg_match('[^\dABCDEF]', $project_api_key);
-		if ($found_forbidden_char) {
+		if (!ctype_alnum($project_api_key)) {
 			return "Project API keys may only contain hexadecimal digits.";
 		}
 		
@@ -1373,7 +1372,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			}
 		}
 		if (empty($target_server)) {
-			return "Couldn't find server in settings with URL: '$server_url'.";
+			return "Couldn't find server in settings with URL: '" . htmlentities($server_url, ENT_QUOTES) . "'.";
 		}
 		
 		// find target project in target server
