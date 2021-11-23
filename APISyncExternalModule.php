@@ -1338,14 +1338,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	
 	private function validateImport() {
 		// returns an error string or, settings valid, an array with target project/server information
-		$project_api_key = $_POST['project-api-key'];
+		$project_api_key = preg_replace('[^\dABCDEF]', '', $_POST['project-api-key']);
 		$server_url = $_POST['server-url'];
 		$server_type = htmlentities($_POST['server-type'], ENT_QUOTES);
-		
-		// validate project_api_key
-		if (!ctype_alnum($project_api_key)) {
-			return "Project API keys may only contain hexadecimal digits.";
-		}
 		
 		// validate server_type
 		if ($server_type != 'import' and $server_type != 'export') {
