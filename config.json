@@ -63,6 +63,27 @@
 			"type": "text"
 		},
 		{
+			"key": "export-field-list-type-all",
+			"name": "<b>Field List Type</b> - If left blank, the list below will be ignored",
+			"type": "dropdown",
+			"choices": [
+				{
+					"name": "Include - Only the fields listed below will be exported",
+					"value": "include"
+				},
+				{
+					"name": "Exclude - All fields will be exported except those listed below",
+					"value": "exclude"
+				}
+			]
+		},
+		{
+			"key": "export-field-list-all",
+			"name": "Field List",
+			"type": "field-list",
+			"repeatable": true
+		},
+		{
 			"key": "export-servers",
 			"name": "Export Destinations",
 			"type": "sub_settings",
@@ -96,7 +117,7 @@
 						},
 						{
 							"key": "export-field-list-type",
-							"name": "<b>Field List Type</b> - If left blank, the Field List will be ignored",
+							"name": "<b>Field List Type</b> - This and the list below override the top level Field List settings shared by all exports.  If left blank, the list below will be ignored",
 							"type": "dropdown",
 							"choices": [
 								{
@@ -137,6 +158,27 @@
 			"type": "descriptive"
 		},
 		{
+			"key": "import-field-list-type-all",
+			"name": "<b>Field List Type</b> - If left blank, the list below will be ignored",
+			"type": "dropdown",
+			"choices": [
+				{
+					"name": "Include - Only the fields listed below will be imported",
+					"value": "include"
+				},
+				{
+					"name": "Exclude - All fields will be imported except those listed below",
+					"value": "exclude"
+				}
+			]
+		},
+		{
+			"key": "import-field-list-all",
+			"name": "Field List",
+			"type": "field-list",
+			"repeatable": true
+		},
+		{
 			"key": "servers",
 			"name": "Import Sources",
 			"type": "sub_settings",
@@ -160,7 +202,8 @@
 				{
 					"key": "last-import-time",
 					"name": "Last Import Time - Do <b>NOT</b> modify this setting",
-					"type": "text"
+					"type": "text",
+					"hidden": true
 				},
 				{
 					"key": "projects",
@@ -190,7 +233,7 @@
 						},
 						{
 							"key": "import-field-list-type",
-							"name": "<b>Field List Type</b> - If left blank, the Field List will be ignored",
+							"name": "<b>Field List Type</b> - This and the list below override the top level Field List settings shared by all imports.  If left blank, the list below will be ignored",
 							"type": "dropdown",
 							"choices": [
 								{

@@ -31,15 +31,17 @@ class APISyncExternalModuleTest extends BaseTest{
         $this->assertSame($expected, $actual);
     }
 
-    function testFilterByFieldList(){
-        $_GET['pid'] = ExternalModules::getTestPIDs()[0];
-
+    function assertFilterByFieldList($typeAll, $fieldListAll, $type, $fieldList, $expectedFields){
         $instance = [
             'field1' => rand(),
             'field2' => rand()
         ];
 
         $fieldNumbersToNames = function($numbers){
+            if($numbers === null){
+                $numbers = [];
+            }
+
             $names = [];
             foreach($numbers as $number){
                 $names[] = "field$number";
@@ -48,25 +50,41 @@ class APISyncExternalModuleTest extends BaseTest{
             return $names;
         };
 
-        $assert = function($type, $fieldListNumbers, $expectedFieldNumbers) use ($instance, $fieldNumbersToNames){
-            $fieldList = $fieldNumbersToNames($fieldListNumbers);
-            $expectedFieldNames = $fieldNumbersToNames($expectedFieldNumbers);
+        $fieldListAll = $fieldNumbersToNames($fieldListAll);
+        $fieldList = $fieldNumbersToNames($fieldList);
+        $expectedFields = $fieldNumbersToNames($expectedFields);
 
-            $expected = [];
-            foreach($expectedFieldNames as $expectedFieldName){
-                if(isset($instance[$expectedFieldName])){
-                    $expected[$expectedFieldName] = $instance[$expectedFieldName];
-                }
+        $this->cacheProjectSetting('-field-list-type-all', $typeAll);
+        $this->cacheProjectSetting('-field-list-all', $fieldListAll);
+
+        $project = [
+            "-field-list-type" => $type,
+            '-field-list' => $fieldList
+        ];
+
+        $expected = [];
+        foreach($expectedFields as $expectedFieldName){
+            if(isset($instance[$expectedFieldName])){
+                $expected[$expectedFieldName] = $instance[$expectedFieldName];
             }
-            
-            $project = [
-                "-field-list-type" => $type,
-                '-field-list' => $fieldList
-            ];
-            
-            $this->module->filterByFieldList($project, $instance);
+        }
 
-            $this->assertSame($expected, $instance);
+        $_GET['pid'] = ExternalModules::getTestPIDs()[0];
+        $this->module->filterByFieldList($project, $instance);
+
+        $this->assertSame($expected, $instance);
+    }
+
+    function testFilterByFieldList(){
+        $assert = function($type, $fieldListNumbers, $expectedFieldNumbers){
+            $this->assertFilterByFieldList(null, null, $type, $fieldListNumbers, $expectedFieldNumbers);
+            $this->assertFilterByFieldList($type, $fieldListNumbers, null, null, $expectedFieldNumbers);
+
+            if(!empty($type)){
+                // Make sure project settings take precedence
+                $otherType = $type === 'include' ?  'exclude' : 'include';
+                $this->assertFilterByFieldList($otherType, $fieldListNumbers, $type, $fieldListNumbers, $expectedFieldNumbers);
+            }
         };
 
         $assert('include', [], []);

@@ -22,6 +22,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	const MAX_LOG_QUERY_PERIOD = '1 week';
 
 	private $settingPrefix;
+	private $cachedSettings;
 
 	function cron($cronInfo){
 		/**
@@ -770,6 +771,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$type = $project[$this->getPrefixedSettingName('field-list-type')];
 		$fieldList = $project[$this->getPrefixedSettingName('field-list')] ?? [];
 
+		if(empty($type)){
+			$type = $this->getCachedProjectSetting($this->getPrefixedSettingName('field-list-type-all'));
+			$fieldList = $this->getCachedProjectSetting($this->getPrefixedSettingName('field-list-all'));
+		}
+
 		if($type === 'include'){
 			$includedFields = array_flip(array_merge($fieldList, $this->getREDCapIdentifierFields()));
 
@@ -1438,6 +1444,17 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return "";
 	}
 
+	function cacheProjectSetting($key, $value){
+		$this->cachedSettings[$key] = $value;
+	}
+
+	function getCachedProjectSetting($key){
+		if(!isset($this->cachedSettings[$key])){
+			$this->cacheProjectSetting($key, $this->getProjectSetting($key));
+		}
+
+		return $this->cachedSettings[$key];
+	}
 }
 
 // Shim for function that doesn't exist until php 7.
