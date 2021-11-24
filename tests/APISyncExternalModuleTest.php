@@ -1,6 +1,8 @@
 <?php
 namespace Vanderbilt\APISyncExternalModule;
 
+use ExternalModules\ExternalModules;
+
 class APISyncExternalModuleTest extends BaseTest{
     function testGetChangedFieldNamesForLogRow(){
         $expected = ['a', 'b', 'c', 'underscores_and_numbers123'];
@@ -27,5 +29,32 @@ class APISyncExternalModuleTest extends BaseTest{
         $actual = $this->getChangedFieldNamesForLogRow($dataValues, $expected);
 
         $this->assertSame($expected, $actual);
+    }
+
+    function testFilterByFieldList(){
+        $_GET['pid'] = ExternalModules::getTestPIDs()[0];
+
+        $fieldName = 'some_field';
+        $instance = [
+            $fieldName => rand(),
+            'some_other_field' => rand()
+        ];
+
+        $assert = function($type) use ($fieldName, $instance){
+            $project = [
+                "-field-list-type" => $type,
+                '-field-list' => [$fieldName]
+            ];
+            
+            $this->module->filterByFieldList($project, $instance);
+
+            $this->assertSame(1, count($instance));
+            $this->assertSame(isset($instance[$fieldName]), $type === 'include');
+        };
+
+        $listTypes = ['include', 'exclude'];
+        foreach($listTypes as $listType){
+            $assert($listType);
+        }
     }
 }
