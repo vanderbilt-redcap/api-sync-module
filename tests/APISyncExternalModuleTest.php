@@ -34,16 +34,24 @@ class APISyncExternalModuleTest extends BaseTest{
     function testFilterByFieldList(){
         $_GET['pid'] = ExternalModules::getTestPIDs()[0];
 
-        $f1 = 'field1';
-        $f2 = 'field2';
-        $f3 = 'field3';
-
         $instance = [
-            $f1 => rand(),
-            $f2 => rand()
+            'field1' => rand(),
+            'field2' => rand()
         ];
 
-        $assert = function($type, $fieldName, $expectedFieldNames) use ($instance){
+        $fieldNumbersToNames = function($numbers){
+            $names = [];
+            foreach($numbers as $number){
+                $names[] = "field$number";
+            }
+
+            return $names;
+        };
+
+        $assert = function($type, $fieldListNumbers, $expectedFieldNumbers) use ($instance, $fieldNumbersToNames){
+            $fieldList = $fieldNumbersToNames($fieldListNumbers);
+            $expectedFieldNames = $fieldNumbersToNames($expectedFieldNumbers);
+
             $expected = [];
             foreach($expectedFieldNames as $expectedFieldName){
                 if(isset($instance[$expectedFieldName])){
@@ -53,7 +61,7 @@ class APISyncExternalModuleTest extends BaseTest{
             
             $project = [
                 "-field-list-type" => $type,
-                '-field-list' => [$fieldName]
+                '-field-list' => $fieldList
             ];
             
             $this->module->filterByFieldList($project, $instance);
@@ -61,14 +69,14 @@ class APISyncExternalModuleTest extends BaseTest{
             $this->assertSame($expected, $instance);
         };
 
-        $assert('include', $f1, [$f1]);
-        $assert('exclude', $f1, [$f2]);
+        $assert('include', [1], [1]);
+        $assert('exclude', [1], [2]);
 
-        $assert('include', $f3, []);
-        $assert('exclude', $f3, [$f1, $f2]);
+        $assert('include', [3], []);
+        $assert('exclude', [3], [1, 2]);
 
         foreach([null, ''] as $emptyType){
-            $assert($emptyType, $f3, [$f1, $f2]);
+            $assert($emptyType, 3, [1, 2]);
         }
     }
 }
