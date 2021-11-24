@@ -766,7 +766,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $name;
 	}
 
-	private function filterByFieldList($project, &$instance){
+	function filterByFieldList($project, &$instance){
 		$type = $project[$this->getPrefixedSettingName('field-list-type')];
 		$fieldList = $project[$this->getPrefixedSettingName('field-list')] ?? [];
 
