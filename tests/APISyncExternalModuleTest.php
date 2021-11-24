@@ -34,13 +34,23 @@ class APISyncExternalModuleTest extends BaseTest{
     function testFilterByFieldList(){
         $_GET['pid'] = ExternalModules::getTestPIDs()[0];
 
-        $fieldName = 'some_field';
+        $f1 = 'field1';
+        $f2 = 'field2';
+        $f3 = 'field3';
+
         $instance = [
-            $fieldName => rand(),
-            'some_other_field' => rand()
+            $f1 => rand(),
+            $f2 => rand()
         ];
 
-        $assert = function($type) use ($fieldName, $instance){
+        $assert = function($type, $fieldName, $expectedFieldNames) use ($instance){
+            $expected = [];
+            foreach($expectedFieldNames as $expectedFieldName){
+                if(isset($instance[$expectedFieldName])){
+                    $expected[$expectedFieldName] = $instance[$expectedFieldName];
+                }
+            }
+            
             $project = [
                 "-field-list-type" => $type,
                 '-field-list' => [$fieldName]
@@ -48,13 +58,17 @@ class APISyncExternalModuleTest extends BaseTest{
             
             $this->module->filterByFieldList($project, $instance);
 
-            $this->assertSame(1, count($instance));
-            $this->assertSame(isset($instance[$fieldName]), $type === 'include');
+            $this->assertSame($expected, $instance);
         };
 
-        $listTypes = ['include', 'exclude'];
-        foreach($listTypes as $listType){
-            $assert($listType);
+        $assert('include', $f1, [$f1]);
+        $assert('exclude', $f1, [$f2]);
+
+        $assert('include', $f3, []);
+        $assert('exclude', $f3, [$f1, $f2]);
+
+        foreach([null, ''] as $emptyType){
+            $assert($emptyType, $f3, [$f1, $f2]);
         }
     }
 }
