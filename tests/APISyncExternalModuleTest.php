@@ -69,14 +69,22 @@ class APISyncExternalModuleTest extends BaseTest{
             $this->assertSame($expected, $instance);
         };
 
+        $assert('include', [], []);
         $assert('include', [1], [1]);
-        $assert('exclude', [1], [2]);
-
+        $assert('include', [1,2], [1,2]);
+        $assert('include', [2,3], [2]);
         $assert('include', [3], []);
+
+        $assert('exclude', [], [1,2]);
+        $assert('exclude', [1], [2]);
+        $assert('exclude', [1,3], [2]);
+        $assert('exclude', [1,2], []);
         $assert('exclude', [3], [1, 2]);
 
         foreach([null, ''] as $emptyType){
-            $assert($emptyType, 3, [1, 2]);
+            $assert($emptyType, [], [1,2]);
+            $assert($emptyType, [1], [1,2]);
+            $assert($emptyType, [3], [1,2]);
         }
     }
 }
