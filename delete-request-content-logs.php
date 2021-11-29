@@ -1,4 +1,4 @@
 <?php
 
-$module->removeLogs('message = ?', 'API Request');
+$module->removeLogs('message in (?,?)', ['API Request', 'API Response']);
 echo 'success';

@@ -114,7 +114,7 @@
 		<br>
 		<button class="api-sync-cancel-export-button">Cancel Export</button> - Cancels the active export.
 		<br>
-		<button class="api-sync-delete-request-content-logs">Delete Request Content Logs</button> - Deletes all logs created by the "Log request contents" setting.
+		<button class="api-sync-delete-request-content-logs">Delete Request Content Logs</button> - Deletes all logs created by the "Log request contents & responses" setting.
 		<?php
 		$module->renderSyncNowHtml();
 		?>

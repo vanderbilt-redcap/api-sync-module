@@ -19,7 +19,7 @@
 		},
 		{
 			"key": "log-requests",
-			"name": "Log request contents (only enable temporarily for debugging)",
+			"name": "Log request contents & responses<br>(only enable temporarily for debugging)",
 			"type": "checkbox"
 		},
 		{

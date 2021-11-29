@@ -969,7 +969,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$data
 		);
 
-		if($this->getProjectSetting('log-requests')){
+		if($this->getCachedProjectSetting('log-requests')){
 			$this->log('API Request', [
 				'details' => json_encode(array_merge($data,[
 					'url' => $url
@@ -992,6 +992,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$tries = 0;
 		while($tries < 3){
 			$output = curl_exec($ch);
+
+			if($this->getCachedProjectSetting('log-requests')){
+				$this->log('API Response', [
+					'details' => $output,
+				]);
+			}
+
 			$errorNumber = curl_errno($ch);
 
 			if($errorNumber === 56){
