@@ -789,9 +789,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$isset = isset($fieldList[$fieldWithoutCheckboxSuffix]);
 
 			if(
-				$type === 'include' && !$isset
+				($type === 'include' && !$isset)
 				||
-				$type === 'exclude' && $isset
+				($type === 'exclude' && $isset)
 			){
 				unset($instance[$field]);
 			}
