@@ -31,29 +31,7 @@ class APISyncExternalModuleTest extends BaseTest{
         $this->assertSame($expected, $actual);
     }
 
-    function assertFilterByFieldList($typeAll, $fieldListAll, $type, $fieldList, $expectedFields){
-        $instance = [
-            'field1' => rand(),
-            'field2' => rand()
-        ];
-
-        $fieldNumbersToNames = function($numbers){
-            if($numbers === null){
-                $numbers = [];
-            }
-
-            $names = [];
-            foreach($numbers as $number){
-                $names[] = "field$number";
-            }
-
-            return $names;
-        };
-
-        $fieldListAll = $fieldNumbersToNames($fieldListAll);
-        $fieldList = $fieldNumbersToNames($fieldList);
-        $expectedFields = $fieldNumbersToNames($expectedFields);
-
+    function assertFilterByFieldList($typeAll, $fieldListAll, $type, $fieldList, $expectedFields, $instance){
         $this->cacheProjectSetting('-field-list-type-all', $typeAll);
         $this->cacheProjectSetting('-field-list-all', $fieldListAll);
 
@@ -77,13 +55,39 @@ class APISyncExternalModuleTest extends BaseTest{
 
     function testFilterByFieldList(){
         $assert = function($type, $fieldListNumbers, $expectedFieldNumbers){
-            $this->assertFilterByFieldList(null, null, $type, $fieldListNumbers, $expectedFieldNumbers);
-            $this->assertFilterByFieldList($type, $fieldListNumbers, null, null, $expectedFieldNumbers);
+            $assertFilterByFieldList = function($typeAll, $fieldListAll, $type, $fieldList, $expectedFields){
+                $instance = [
+                    'field1' => rand(),
+                    'field2' => rand()
+                ];
+        
+                $fieldNumbersToNames = function($numbers){
+                    if($numbers === null){
+                        $numbers = [];
+                    }
+        
+                    $names = [];
+                    foreach($numbers as $number){
+                        $names[] = "field$number";
+                    }
+        
+                    return $names;
+                };
+        
+                $fieldListAll = $fieldNumbersToNames($fieldListAll);
+                $fieldList = $fieldNumbersToNames($fieldList);
+                $expectedFields = $fieldNumbersToNames($expectedFields);
+
+                $this->assertFilterByFieldList($typeAll, $fieldListAll, $type, $fieldList, $expectedFields, $instance);
+            };
+
+            $assertFilterByFieldList(null, null, $type, $fieldListNumbers, $expectedFieldNumbers);
+            $assertFilterByFieldList($type, $fieldListNumbers, null, null, $expectedFieldNumbers);
 
             if(!empty($type)){
                 // Make sure project settings take precedence
                 $otherType = $type === 'include' ?  'exclude' : 'include';
-                $this->assertFilterByFieldList($otherType, $fieldListNumbers, $type, $fieldListNumbers, $expectedFieldNumbers);
+                $assertFilterByFieldList($otherType, $fieldListNumbers, $type, $fieldListNumbers, $expectedFieldNumbers);
             }
         };
 
