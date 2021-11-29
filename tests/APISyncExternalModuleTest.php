@@ -31,7 +31,7 @@ class APISyncExternalModuleTest extends BaseTest{
         $this->assertSame($expected, $actual);
     }
 
-    function assertFilterByFieldList($typeAll, $fieldListAll, $type, $fieldList, $expectedFields, $instance){
+    function assertFilterByFieldList($typeAll, $fieldListAll, $type, $fieldList, $instance, $expected){
         $this->cacheProjectSetting('-field-list-type-all', $typeAll);
         $this->cacheProjectSetting('-field-list-all', $fieldListAll);
 
@@ -39,13 +39,6 @@ class APISyncExternalModuleTest extends BaseTest{
             "-field-list-type" => $type,
             '-field-list' => $fieldList
         ];
-
-        $expected = [];
-        foreach($expectedFields as $expectedFieldName){
-            if(isset($instance[$expectedFieldName])){
-                $expected[$expectedFieldName] = $instance[$expectedFieldName];
-            }
-        }
 
         $_GET['pid'] = ExternalModules::getTestPIDs()[0];
         $this->module->filterByFieldList($project, $instance);
@@ -78,7 +71,14 @@ class APISyncExternalModuleTest extends BaseTest{
                 $fieldList = $fieldNumbersToNames($fieldList);
                 $expectedFields = $fieldNumbersToNames($expectedFields);
 
-                $this->assertFilterByFieldList($typeAll, $fieldListAll, $type, $fieldList, $expectedFields, $instance);
+                $expected = [];
+                foreach($expectedFields as $expectedFieldName){
+                    if(isset($instance[$expectedFieldName])){
+                        $expected[$expectedFieldName] = $instance[$expectedFieldName];
+                    }
+                }
+
+                $this->assertFilterByFieldList($typeAll, $fieldListAll, $type, $fieldList, $instance, $expected);
             };
 
             $assertFilterByFieldList(null, null, $type, $fieldListNumbers, $expectedFieldNumbers);
