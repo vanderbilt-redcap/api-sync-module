@@ -9,6 +9,8 @@ use Exception;
 use REDCap;
 use stdClass;
 
+const CHECKBOX_DELIMITER = '___';
+
 class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	const IMPORT_PROGRESS_SETTING_KEY = 'import-progress';
 
@@ -777,16 +779,20 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 
 		if($type === 'include'){
-			$includedFields = array_flip(array_merge($fieldList, $this->getREDCapIdentifierFields()));
-
-			foreach(array_keys($instance) as $field){
-				if(!isset($includedFields[$field])){
-					unset($instance[$field]);
-				}
-			}
+			$fieldList = array_merge($fieldList, $this->getREDCapIdentifierFields());
 		}
-		else if($type === 'exclude'){
-			foreach($fieldList as $field){
+
+		$fieldList = array_flip($fieldList);
+
+		foreach(array_keys($instance) as $field){
+			$fieldWithoutCheckboxSuffix = explode(CHECKBOX_DELIMITER, $field)[0];
+			$isset = isset($fieldList[$fieldWithoutCheckboxSuffix]);
+
+			if(
+				$type === 'include' && !$isset
+				||
+				$type === 'exclude' && $isset
+			){
 				unset($instance[$field]);
 			}
 		}

@@ -109,4 +109,22 @@ class APISyncExternalModuleTest extends BaseTest{
             $assert($emptyType, [3], [1,2]);
         }
     }
+
+    function testFilterByFieldList_checkboxes(){
+        $fieldName = 'some_checkbox';
+        $fieldNameWithSuffix = "{$fieldName}___1";
+        $otherFieldName = 'some_other_field';
+        $instance = [
+            $fieldNameWithSuffix => rand(),
+            $otherFieldName => rand()
+        ];
+
+        $this->assertFilterByFieldList(null, null, 'exclude', [$fieldName], $instance, [
+            $otherFieldName => $instance[$otherFieldName]
+        ]);
+
+        $this->assertFilterByFieldList(null, null, 'include', [$fieldName], $instance, [
+            $fieldNameWithSuffix => $instance[$fieldNameWithSuffix]
+        ]);
+    }
 }
