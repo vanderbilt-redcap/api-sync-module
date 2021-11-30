@@ -29,18 +29,13 @@
 			"type": "descriptive"
 		},
 		{
-			"key": "export-every-minute",
-			"name": "<b>Export Every Minute</b><br>• Overrides the daily/hourly options below",
-			"type": "checkbox"
-		},
-		{
 			"key": "export-minute",
 			"name": "<b>Daily/Hourly Export Minute (0-59)</b><br>• The minute on which daily or hourly exports will occur<br>• If omitted, neither daily nor hourly exports will occur",
 			"type": "text"
 		},
 		{
 			"key": "export-hour",
-			"name": "<b>Daily Export Hour (0-23)</b><br>• The hour on which daily exports will occur<br>• If omitted, exports will occur hourly<br> &nbsp;&nbsp;(unless <b>Export Every Minute</b> is checked)",
+			"name": "<b>Daily Export Hour (0-23)</b><br>• The hour on which daily exports will occur<br>• If omitted, exports will occur hourly.  However, daily exports are recommended whenever possible to minimize server resource usage",
 			"type": "text"
 		},
 		{

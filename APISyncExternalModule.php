@@ -578,10 +578,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			return true;
 		}
 
-		if($this->getProjectSetting('export-every-minute')){
-			return true;
-		}
-
 		$minute = $this->getProjectSetting('export-minute');
 		$hour = $this->getProjectSetting('export-hour');
 
