@@ -127,4 +127,25 @@ class APISyncExternalModuleTest extends BaseTest{
             $fieldNameWithSuffix => $instance[$fieldNameWithSuffix]
         ]);
     }
+
+    function testLogDetails(){
+        $a = str_repeat('a', 65535);
+        $b = str_repeat('b', 65535);
+        $c = str_repeat('c', 65535);
+
+        $logId = $this->logDetails('message', "$a$b$c");
+
+        $result = $this->queryLogs('select details, details2, details3, details4 where log_id = ?', $logId);
+        $actual = $result->fetch_assoc();
+
+        $expected = [
+            'details' => $a,
+            'details2' => $b,
+            'details3' => $c,
+            'details4' => null,
+        ];
+
+        // Don't use assertSame() because the failure output is too large for the console.
+        $this->assertTrue($expected === $actual);
+    }
 }

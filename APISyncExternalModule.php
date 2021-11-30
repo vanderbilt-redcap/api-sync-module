@@ -349,6 +349,21 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
+	function logDetails($message, $details){
+		$parts = str_split($details, 65535);
+		$params = [
+			'details' => array_shift($parts)
+		];
+
+		$n = 2;
+		foreach($parts as $part){
+			$params["details$n"] = $part;
+			$n++;
+		}
+
+		return $this->log($message, $params);
+	}
+
 	function getProjects($server){
 		$fieldListSettingName = $this->getPrefixedSettingName("field-list");
 		$projects = $server[$this->getPrefixedSettingName("projects")];
@@ -976,11 +991,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		);
 
 		if($this->getCachedProjectSetting('log-requests')){
-			$this->log('API Request', [
-				'details' => json_encode(array_merge($data,[
-					'url' => $url
-				]), JSON_PRETTY_PRINT),
-			]);
+			$this->logDetails('API Request', json_encode(array_merge($data,[
+				'url' => $url
+			]), JSON_PRETTY_PRINT));
 		}
 
 		$ch = curl_init();
@@ -1000,9 +1013,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$output = curl_exec($ch);
 
 			if($this->getCachedProjectSetting('log-requests')){
-				$this->log('API Response', [
-					'details' => $output,
-				]);
+				$this->logDetails('API Response', $output);
 			}
 
 			$errorNumber = curl_errno($ch);
