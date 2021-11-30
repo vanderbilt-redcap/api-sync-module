@@ -21,7 +21,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	const EXPORT_CANCELLED_MESSAGE = 'Export cancelled.';
 
 	const DATA_VALUES_MAX_LENGTH = (2^16) - 1;
-	const MAX_LOG_QUERY_PERIOD = '1 week';
+	const MAX_LOG_QUERY_PERIOD = 7;
 
 	private $settingPrefix;
 	private $cachedSettings;
@@ -125,7 +125,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			",
 			[
 				$this->getProjectId(),
-				(new DateTime)->modify('-' . self::MAX_LOG_QUERY_PERIOD)->format('YmdHis')
+				(new DateTime)->modify('-' . self::MAX_LOG_QUERY_PERIOD . ' days')->format('YmdHis')
 			]
 		);
 
@@ -522,7 +522,20 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			'details' => $e->getMessage() . "\n\n" . $e->getTraceAsString()
 		]);
 
-		$this->sendErrorEmail("The API Sync module has encountered an error on project " . $this->getProjectId() . ".  If this error is not addressed within " . self::MAX_LOG_QUERY_PERIOD . ", some changes will not be automatically synced.");
+		$message = "The API Sync module has encountered an error on project " . $this->getProjectId() . ".  The sync will be automatically re-tried, but action is likely required before it will succeed.";
+
+		if($this->settingPrefix === 'export'){
+			/**
+			 * In a worst case scenario, the first failed sync would not occur until approximately a day after the first unsynced change,
+			 * and the next successful sync may not occur until a day after the problem is fixed.  Because of this, we advertise a window
+			 * two days shorter than MAX_LOG_QUERY_PERIOD for fixing the issue.
+			 */
+			$fixDayRange = self::MAX_LOG_QUERY_PERIOD-2 . '-' . self::MAX_LOG_QUERY_PERIOD;
+
+			$message .= "  If this message persists longer than an approximate $fixDayRange day cutoff, older changes will be skipped to conserve server resources.  This cutoff is not possible to predict precisely since it is dependent on actual cron run times for this and other modules.  If the cutoff is reached, a full sync (or manual export/import) will be required to ensure all older changes were synced.  If this message persists longer than " . self::MAX_LOG_QUERY_PERIOD . " days, please disable this sync to prevent unnecessary server resource consumption.";
+		}
+
+		$this->sendErrorEmail($message);
 	}
 
 	private function sendErrorEmail($message){
