@@ -19,11 +19,6 @@
 			"repeatable": true
 		},
 		{
-			"key": "disable-error-emails",
-			"name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'>Disable error notification emails to superusers on the project (or the general system admin email if there are none on the project).</div>",
-			"type": "checkbox"
-		},
-		{
 			"key": "log-requests",
 			"name": "Log request contents & responses<br>(only enable temporarily for debugging)",
 			"type": "checkbox"
