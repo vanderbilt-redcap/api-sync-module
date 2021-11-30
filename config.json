@@ -50,12 +50,12 @@
 		},
 		{
 			"key": "export-batch-size",
-			"name": "<b>Max records per batch</b> - This value should be left blank unless a more optimal size for the project/servers has been carefully calculated",
+			"name": "<b>Max Records Per Batch</b><br>This value <b>should be left blank</b> to allow auto-calculation unless a more optimal size for the project/servers has been <b>carefully calculated</b>, and the <b>sync is monitored</b> to ensure it completes as quickly as possible to avoid consuming <b>significant server resources</b>",
 			"type": "text"
 		},
 		{
 			"key": "export-sub-batch-size",
-			"name": "<b>Max megabytes per sub-batch</b> - This value should be left blank unless a more optimal size for the project/servers has been carefully calculated",
+			"name": "<b>Max Megabytes Per Sub-Batch</b><br>This value <b>should be left blank</b> to allow auto-calculation unless a more optimal size for the project/servers has been <b>carefully calculated</b>, and the <b>sync is monitored</b> to ensure it completes as quickly as possible to avoid consuming <b>significant server resources</b>",
 			"type": "text"
 		},
 		{
