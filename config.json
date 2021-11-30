@@ -14,7 +14,7 @@
 	"project-settings": [
 		{
 			"key": "error-recipients",
-			"name": "<b>Error Recipients</b> - If not specified, errors will be sent to all users with design rights",
+			"name": "<b>Error Recipients</b> - If left blank, errors will be sent to all users with design rights",
 			"type": "user-list",
 			"repeatable": true
 		},
