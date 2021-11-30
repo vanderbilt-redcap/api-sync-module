@@ -20,7 +20,7 @@
 		},
 		{
 			"key": "log-requests",
-			"name": "Log request contents & responses<br>(only enable temporarily for debugging)",
+			"name": "<b>Log Request Contents</b> - Only check this <b>TEMPORARILY</b> while debugging, or a significant amount of space will be used in the database",
 			"type": "checkbox"
 		},
 		{
