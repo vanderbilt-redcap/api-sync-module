@@ -13,6 +13,12 @@
 	"permissions": [],
 	"project-settings": [
 		{
+			"key": "error-recipients",
+			"name": "<b>Error Recipients</b> - If not specified, errors will be sent to all users with design rights",
+			"type": "user-list",
+			"repeatable": true
+		},
+		{
 			"key": "disable-error-emails",
 			"name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'>Disable error notification emails to superusers on the project (or the general system admin email if there are none on the project).</div>",
 			"type": "checkbox"

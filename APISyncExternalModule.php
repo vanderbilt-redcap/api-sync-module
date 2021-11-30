@@ -539,11 +539,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function sendErrorEmail($message){
-		if(!method_exists($this->framework, 'getProject')){
-			// This REDCap version is older and doesn't have the methods needed for error reporting.
-			return;
-		}
-
 		if($this->getProjectSetting('disable-error-emails') === true){
 			return;
 		}
@@ -551,21 +546,26 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$url = $this->getUrl('api-sync.php');
 		$message .= "  See the logs on <a href='$url'>this page</a> for details.";
 
-		$project = $this->framework->getProject();
-		$users = $project->getUsers();
-
+		$usernames = $this->getProjectSetting('error-recipients');
 		$emails = [];
-		foreach($users as $user){
-			if($user->isSuperUser()){
-				$emails[] = $user->getEmail();
+		if(!empty($usernames)){
+			foreach($usernames as $username){
+				if(!empty($username)){
+					$emails[] = $this->getUser($username)->getEmail();
+				}
+			}
+		}
+
+		if(empty($emails)){
+			$users = $this->getProject()->getUsers();
+			foreach($users as $user){
+				if($user->hasDesignRights()){
+					$emails[] = $user->getEmail();
+				}
 			}
 		}
 
 		global $homepage_contact_email;
-		if(empty($emails)){
-			// There aren't any super users on the project.  Send to the system admin instead.
-			$emails[] = $homepage_contact_email;
-		}
 
 		REDCap::email(
 			implode(', ', $emails),
