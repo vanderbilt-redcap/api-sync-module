@@ -920,11 +920,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 			$this->log("Import $message for $batchText", $logParams);
 
-			if(!$project['leave-unlocked']){
-				$this->log("Locking all forms/instances for $batchText");
-				$this->framework->records->lock($results['ids']);
-			}
-
 			if($stopEarly){
 				$this->sendErrorEmail("REDCap was unable to import some record data.");
 				return true;

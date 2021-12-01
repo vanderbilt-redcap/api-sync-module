@@ -218,11 +218,6 @@
 							"type": "text"
 						},
 						{
-							"key": "leave-unlocked",
-							"name": "Skip form/instance locking after import",
-							"type": "checkbox"
-						},
-						{
 							"key": "import-batch-size",
 							"name": "Import Batch Size (optional)",
 							"type": "text"
