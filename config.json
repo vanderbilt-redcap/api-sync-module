@@ -292,9 +292,5 @@
 			"cron_max_run_time": "86400",
 			"comment": "Imports are in a separate cron so that long running imports do not prevent real-time exports from occurring."
 		}
-	],
-	"compatibility": {
-		"redcap-version-min": "9.0.0",
-		"redcap-version-min-reason": "EM Framework commit b184817 is required"
-	}
+	]
 }
