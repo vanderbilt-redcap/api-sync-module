@@ -66,6 +66,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function handleExports(){
+		// Temporarily added for SAVE-O2.  Remove soon in favor of continuing exports in the next cron process.
+		$oneWeek = 60*60*24*7;
+		set_time_limit($oneWeek);
+
 		// In case the previous export was cancelled, or the button pushed when an export wasn't active.
 		$this->setExportCancelled(false);
 
