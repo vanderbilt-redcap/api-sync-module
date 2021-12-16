@@ -1,6 +1,8 @@
 <?php
-$start = $_GET['start'];
-$end = date('Y-m-d', strtotime($_GET['end'] . ' + 1 day'));
+$start = $module->requireDateParameter('start', 'Y-m-d');
+$end = $module->requireDateParameter('end', 'Y-m-d');
+
+$end = date('Y-m-d', strtotime($end . ' + 1 day'));
 $hasDetailsClause = "details != ''";
 
 if(version_compare(REDCAP_VERSION, '10.8.2', '<')){

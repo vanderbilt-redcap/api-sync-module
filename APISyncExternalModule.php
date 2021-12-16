@@ -1483,6 +1483,31 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		return $this->cachedSettings[$key];
 	}
+
+	// This should likely be replaced by functionality in the module framework at some point.
+	function requireDateParameter($paramName, $dateFormat, $array = null){
+		if($array === null){
+			if(isset($_GET[$paramName])){
+				$array = $_GET;		
+			}
+			else{
+				$array = $_POST;
+			}
+		}
+
+		$value = $array[$paramName] ?? null;
+
+		// Non-string values might not be a real use case, but let's makes sure the triple equals work below.
+		$value = (string) $value;
+
+		$newValue = date($dateFormat, strtotime($value));
+		if(empty($value) || $newValue !== $value){
+			throw new Exception('Invalid date value supplied!');
+		}
+
+		// Return the $newValue for security scanners that aren't smart enough to detect the exception above.
+		return $newValue;
+	}
 }
 
 // Shim for function that doesn't exist until php 7.
