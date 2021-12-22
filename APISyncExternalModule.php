@@ -449,7 +449,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	private function getExportBatchSize(){
 		$size = (int) $this->getProjectSetting('export-batch-size');
 		if(!$size){
-			$size = 100;
+			// A size of 100 caused our 4g memory limit to be reached on VUMC project 111585.
+			$size = 50;
 		}
 
 		return $size;
