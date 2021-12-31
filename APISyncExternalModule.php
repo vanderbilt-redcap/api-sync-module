@@ -66,10 +66,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function handleExports(){
-		// Temporarily added for SAVE-O2.  Remove soon in favor of continuing exports in the next cron process.
-		$oneWeek = 60*60*24*7;
-		set_time_limit($oneWeek);
-
 		// In case the previous export was cancelled, or the button pushed when an export wasn't active.
 		$this->setExportCancelled(false);
 
@@ -160,23 +156,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return array_keys($dictionary);
 	}
 
-	private function getBatchesToSync($latestLogId){
-		$batchBuilder = new BatchBuilder($this->getExportBatchSize());
-
-		if($this->getProjectSetting('export-all-records') === true){
-			$this->removeProjectSetting('export-all-records');
-
-			$recordIdFieldName = $this->getRecordIdField();
-			$records = json_decode(REDCap::getData($this->getProjectId(), 'json', null, $recordIdFieldName), true);
-
-			foreach($records as $record){
-				// An empty fields array will cause all fields to be pulled.
-				$batchBuilder->addEvent($latestLogId, $record[$recordIdFieldName], 'UPDATE', []);
-			}
-
-			return $batchBuilder->getBatches();
-		}
-
+	private function addBatchesSinceLastExport($batchBuilder){
 		$lastExportedLogId = $this->getLastExportedLogId();		
 		$result = $this->query("
 			select log_event_id, pk, event, data_values
@@ -195,9 +175,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$fields = $this->getChangedFieldNamesForLogRow($row['data_values'], $this->getAllFieldNames());
 			$batchBuilder->addEvent($row['log_event_id'], $row['pk'], $row['event'], $fields);
 		}
-
-		$batches = $batchBuilder->getBatches();
-		return $batches;
 	}
 
 	function getChangedFieldNamesForLogRow($dataValues, $allFieldNames){
@@ -217,8 +194,17 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function export($servers){
-		if(!$this->isTimeToRunExports()){
-			return;
+		$startingBatchIndex = $this->getProjectSetting('export-in-progress-batch-index');
+		if(empty($startingBatchIndex)){
+			if(!$this->isTimeToRunExports()){
+				return;
+			}
+
+			$startingBatchIndex = 0;
+		}
+		else{
+			// Continue an export in progress
+			$this->removeProjectSetting('export-in-progress-batch-index');
 		}
 
 		/**
@@ -239,8 +225,24 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$excludedFieldNames = $this->getIdentifiers();
 		}
 
+		$batchBuilder = new BatchBuilder($this->getExportBatchSize());
 		$latestLogId = $this->getLatestLogId();
-		$batches = $this->getBatchesToSync($latestLogId);
+
+		$exportAllRecords = $this->getProjectSetting('export-all-records') === true;
+		if($exportAllRecords){
+			$this->removeProjectSetting('export-all-records');
+			$records = json_decode(REDCap::getData($this->getProjectId(), 'json', null, $recordIdFieldName), true);
+
+			foreach($records as $record){
+				// An empty fields array will cause all fields to be pulled.
+				$batchBuilder->addEvent($latestLogId, $record[$recordIdFieldName], 'UPDATE', []);
+			}
+		}
+		else{
+			$this->addBatchesSinceLastExport($batchBuilder);
+		}
+
+		$batches = $batchBuilder->getBatches();
 		if(empty($batches)){
 			/**
 			 * No recent changes exist to sync.
@@ -252,7 +254,21 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$this->setProjectSetting('last-exported-log-id', $latestLogId);
 		}
 		else{
+			if($exportAllRecords){
+				// Remove already exported batches
+				array_splice($batches, 0, $startingBatchIndex);
+			}
+
 			for($i=0; $i<count($batches); $i++) {
+				if($this->isCronRunningTooLong()){
+					$this->setProjectSetting('export-in-progress-batch-index', $startingBatchIndex+$i);
+					if($exportAllRecords){
+						$this->setProjectSetting('export-all-records', true);
+					}
+
+					break;
+				}
+
 				$batch = $batches[$i];
 	
 				$type = $batch->getType();
@@ -260,7 +276,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$recordIds = $batch->getRecordIds();
 				$fieldsByRecord = $batch->getFieldsByRecord();
 	
-				$batchText = "batch " . ($i+1) . " of " . count($batches);
+				$batchText = "batch " . ($startingBatchIndex+$i+1) . " of " . ($startingBatchIndex+count($batches));
 	
 				$this->log("Preparing to export {$type}s for $batchText", [
 					'details' => json_encode([
@@ -351,6 +367,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$this->log("Finished exporting {$type}s for $batchText");
 			}
 		}
+	}
+
+	private function isCronRunningTooLong(){
+		return time() >= $_SERVER['REQUEST_TIME_FLOAT'] + 55;
 	}
 
 	function logDetails($message, $details){
@@ -617,7 +637,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$lastRunTime = $this->getProjectSetting('last-export-time');
 		}
 		else{
-			$lastRunTime = $server['last-import-time'];
+			$lastRunTime = $server['last-import-time'] ?? null;
 		}
 
 		if(empty($lastRunTime)){
