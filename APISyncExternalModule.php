@@ -194,19 +194,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function export($servers){
-		$startingBatchIndex = $this->getProjectSetting('export-in-progress-batch-index');
-		if(empty($startingBatchIndex)){
-			if(!$this->isTimeToRunExports()){
-				return;
-			}
-
-			$startingBatchIndex = 0;
-		}
-		else{
-			// Continue an export in progress
-			$this->removeProjectSetting('export-in-progress-batch-index');
-		}
-
 		/**
 		 * WHEN MODIFYING EXPORT BEHAVIOR
 		 * If further export permissions tweaks are made, Paul recommended selecting
@@ -217,6 +204,52 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		 */
 
 		$recordIdFieldName = $this->getRecordIdField();
+
+		$exportProgress = $this->getProjectSetting('export-progress');
+		if($exportProgress === null){
+			if(!$this->isTimeToRunExports()){
+				return;
+			}
+
+			$startingBatchIndex = 0;
+
+			$batchBuilder = new BatchBuilder($this->getExportBatchSize());
+			$latestLogId = $this->getLatestLogId();
+
+			$exportAllRecords = $this->getProjectSetting('export-all-records') === true;
+			if($exportAllRecords){
+				$this->removeProjectSetting('export-all-records');
+				$records = json_decode(REDCap::getData($this->getProjectId(), 'json', null, $recordIdFieldName), true);
+
+				foreach($records as $record){
+					// An empty fields array will cause all fields to be pulled.
+					$batchBuilder->addEvent($latestLogId, $record[$recordIdFieldName], 'UPDATE', []);
+				}
+			}
+			else{
+				$this->addBatchesSinceLastExport($batchBuilder);
+			}
+
+			$batches = $batchBuilder->getBatches();
+			if(empty($batches)){
+				/**
+				 * No recent changes exist to sync.
+				 * Update the last exported log ID to whatever the latest ID across all projects is
+				 * in order to ensure that we don't check this date range again.
+				 * This can reduce query time significantly on projects thar are updated infrequently,
+				 * especially when the server is under heavy load.
+				 */
+				$this->setProjectSetting('last-exported-log-id', $latestLogId);
+				return;
+			}
+		}
+		else{
+			// Continue an export in progress
+			$this->removeProjectSetting('export-progress');
+
+			[$startingBatchIndex, $batches] = unserialize($exportProgress);
+		}
+
 		$dateShiftDates = $this->getProjectSetting('export-shift-dates') === true;
 		$maxSubBatchSize = $this->getExportSubBatchSize();
 
@@ -225,147 +258,114 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$excludedFieldNames = $this->getIdentifiers();
 		}
 
-		$batchBuilder = new BatchBuilder($this->getExportBatchSize());
-		$latestLogId = $this->getLatestLogId();
+		for($i=0; $i<count($batches); $i++) {
+			if($this->isCronRunningTooLong()){
+				$remainingBatches = array_splice($batches, $i);
 
-		$exportAllRecords = $this->getProjectSetting('export-all-records') === true;
-		if($exportAllRecords){
-			$this->removeProjectSetting('export-all-records');
-			$records = json_decode(REDCap::getData($this->getProjectId(), 'json', null, $recordIdFieldName), true);
+				$this->setProjectSetting('export-progress', serialize([
+					$startingBatchIndex+$i,
+					$remainingBatches
+				]));
 
-			foreach($records as $record){
-				// An empty fields array will cause all fields to be pulled.
-				$batchBuilder->addEvent($latestLogId, $record[$recordIdFieldName], 'UPDATE', []);
-			}
-		}
-		else{
-			$this->addBatchesSinceLastExport($batchBuilder);
-		}
-
-		$batches = $batchBuilder->getBatches();
-		if(empty($batches)){
-			/**
-			 * No recent changes exist to sync.
-			 * Update the last exported log ID to whatever the latest ID across all projects is
-			 * in order to ensure that we don't check this date range again.
-			 * This can reduce query time significantly on projects thar are updated infrequently,
-			 * especially when the server is under heavy load.
-			 */
-			$this->setProjectSetting('last-exported-log-id', $latestLogId);
-		}
-		else{
-			if($exportAllRecords){
-				// Remove already exported batches
-				array_splice($batches, 0, $startingBatchIndex);
+				return;
 			}
 
-			for($i=0; $i<count($batches); $i++) {
-				if($this->isCronRunningTooLong()){
-					$this->setProjectSetting('export-in-progress-batch-index', $startingBatchIndex+$i);
-					if($exportAllRecords){
-						$this->setProjectSetting('export-all-records', true);
+			$batch = $batches[$i];
+
+			$type = $batch->getType();
+			$lastLogId = $batch->getLastLogId();
+			$recordIds = $batch->getRecordIds();
+			$fieldsByRecord = $batch->getFieldsByRecord();
+
+			$batchText = "batch " . ($startingBatchIndex+$i+1) . " of " . ($startingBatchIndex+count($batches));
+
+			$this->log("Preparing to export {$type}s for $batchText", [
+				'details' => json_encode([
+					'Last Log ID' => $lastLogId,
+					'Record IDs' => $recordIds
+				], JSON_PRETTY_PRINT)
+			]);
+
+			if($type === self::UPDATE){
+				$fields = $batch->getFields();
+
+				if(!empty($fields)){
+					$fields[] = $recordIdFieldName;
+				}
+
+				$data = json_decode(REDCap::getData(
+					$this->getProjectId(),
+					'json',
+					$recordIds,
+					$fields,
+					[],
+					[],
+					false,
+					false,
+					false,
+					false,
+					false,
+					false,
+					false,
+					$dateShiftDates
+				), true);
+
+				$subBatchData = [];
+				$subBatchSize = 0;
+				$subBatchNumber = 1;
+				for($rowIndex=0; $rowIndex<count($data); $rowIndex++){
+					$row = $data[$rowIndex];
+					foreach($batch->getFields() as $field){
+						if(
+							$field !== $recordIdFieldName
+							&&
+							!isset($fieldsByRecord[$row[$recordIdFieldName]][$field])
+						){
+							// This field didn't change for this record, so don't include it in the export.
+							unset($row[$field]);
+						}
 					}
 
-					break;
-				}
+					foreach($excludedFieldNames as $excludedFieldName){
+						unset($row[$excludedFieldName]);
+					}
 
-				$batch = $batches[$i];
-	
-				$type = $batch->getType();
-				$lastLogId = $batch->getLastLogId();
-				$recordIds = $batch->getRecordIds();
-				$fieldsByRecord = $batch->getFieldsByRecord();
-	
-				$batchText = "batch " . ($startingBatchIndex+$i+1) . " of " . ($startingBatchIndex+count($batches));
-	
-				$this->log("Preparing to export {$type}s for $batchText", [
-					'details' => json_encode([
-						'Last Log ID' => $lastLogId,
-						'Record IDs' => $recordIds
-					], JSON_PRETTY_PRINT)
-				]);
-	
-				if($type === self::UPDATE){
-					$fields = $batch->getFields();
-	
-					if(!empty($fields)){
-						$fields[] = $recordIdFieldName;
+					$rowSize = strlen(json_encode($row));
+
+					$spaceLeftInSubBatch = $maxSubBatchSize - $subBatchSize;
+					if($rowSize > $spaceLeftInSubBatch){
+						if($subBatchSize === 0){
+							$this->log("The export failed because the sub-batch size setting is not large enough to handle the data in the details of this log message.", [
+								'details' => json_encode($row, JSON_PRETTY_PRINT)
+							]);
+
+							throw new Exception("The export failed because of a sub-batch size error.  See the API Sync page for project " . $this->getProjectId() . " for details.");
+						}
+
+						$this->exportSubBatch($servers, $type, $subBatchData, $subBatchNumber);
+						$subBatchData = [];
+						$subBatchSize = 0;
+						$subBatchNumber++;
 					}
-	
-					$data = json_decode(REDCap::getData(
-						$this->getProjectId(),
-						'json',
-						$recordIds,
-						$fields,
-						[],
-						[],
-						false,
-						false,
-						false,
-						false,
-						false,
-						false,
-						false,
-						$dateShiftDates
-					), true);
-	
-					$subBatchData = [];
-					$subBatchSize = 0;
-					$subBatchNumber = 1;
-					for($rowIndex=0; $rowIndex<count($data); $rowIndex++){
-						$row = $data[$rowIndex];
-						foreach($batch->getFields() as $field){
-							if(
-								$field !== $recordIdFieldName
-								&& 
-								!isset($fieldsByRecord[$row[$recordIdFieldName]][$field])
-							){
-								// This field didn't change for this record, so don't include it in the export.
-								unset($row[$field]);
-							}
-						}
-	
-						foreach($excludedFieldNames as $excludedFieldName){
-							unset($row[$excludedFieldName]);
-						}
-	
-						$rowSize = strlen(json_encode($row));
-	
-						$spaceLeftInSubBatch = $maxSubBatchSize - $subBatchSize;
-						if($rowSize > $spaceLeftInSubBatch){
-							if($subBatchSize === 0){
-								$this->log("The export failed because the sub-batch size setting is not large enough to handle the data in the details of this log message.", [
-									'details' => json_encode($row, JSON_PRETTY_PRINT)
-								]);
-	
-								throw new Exception("The export failed because of a sub-batch size error.  See the API Sync page for project " . $this->getProjectId() . " for details.");
-							}
-	
-							$this->exportSubBatch($servers, $type, $subBatchData, $subBatchNumber);
-							$subBatchData = [];
-							$subBatchSize = 0;
-							$subBatchNumber++;
-						}
-	
-						$subBatchData[] = $row;
-						$subBatchSize += $rowSize;
-	
-						$isLastRow = $rowIndex === count($data)-1;
-						if($isLastRow){
-							$this->exportSubBatch($servers, $type, $subBatchData, $subBatchNumber);
-						}
+
+					$subBatchData[] = $row;
+					$subBatchSize += $rowSize;
+
+					$isLastRow = $rowIndex === count($data)-1;
+					if($isLastRow){
+						$this->exportSubBatch($servers, $type, $subBatchData, $subBatchNumber);
 					}
 				}
-				else if($type === self::DELETE){
-					$this->exportSubBatch($servers, $type, $recordIds, 1);
-				}
-				else{
-					throw new Exception("Unsupported export type: $type");
-				}
-	
-				$this->setProjectSetting('last-exported-log-id', $lastLogId);
-				$this->log("Finished exporting {$type}s for $batchText");
 			}
+			else if($type === self::DELETE){
+				$this->exportSubBatch($servers, $type, $recordIds, 1);
+			}
+			else{
+				throw new Exception("Unsupported export type: $type");
+			}
+
+			$this->setProjectSetting('last-exported-log-id', $lastLogId);
+			$this->log("Finished exporting {$type}s for $batchText");
 		}
 	}
 
