@@ -66,6 +66,15 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function handleExports(){
+		/**
+		 * This amount of time was chosen semi-arbitrarily.
+		 * A time limit less than the cron max run time of 24 hours is important.
+		 * Ideally the cron wouldn't only run for a few minutes max, but VUMC Project 111585 has batches that last a couple of hours.
+		 * We might as well set this high, at least until we can justify including sub-batches in the export progress.
+		 */
+		$twentyHours = 60*60*20;
+		set_time_limit($twentyHours);
+
 		// In case the previous export was cancelled, or the button pushed when an export wasn't active.
 		$this->setExportCancelled(false);
 
