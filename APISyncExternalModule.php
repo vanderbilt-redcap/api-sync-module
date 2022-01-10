@@ -836,6 +836,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$fieldList = array_merge($fieldList, $this->getREDCapIdentifierFields());
 		}
 
+		/**
+		 * When nothing is selected, a lone null value appears.  Remove it.
+		 */
+		$fieldList = array_filter($fieldList);
+
 		$fieldList = array_flip($fieldList);
 
 		foreach(array_keys($instance) as $field){
