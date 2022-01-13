@@ -25,6 +25,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 	private $settingPrefix;
 	private $cachedSettings;
+	private $allFieldNames = [];
 
 	function cron($cronInfo){
 		/**
