@@ -122,10 +122,29 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function getLastExportedLogId(){
+		$logTable = $this->getLogTable();
+
+		$result = $this->query("
+			show index from $logTable
+			where Column_name = ? and Seq_in_index = ?
+		", ['ts', 1]);
+
+		$row = $result->fetch_assoc();
+		$indexName = $row['Key_name'] ?? null;
+
+		$indexHint = '';
+		if($indexName !== null){
+			/**
+			 * We add the index hint because MySQL 5.5 is really stupid.
+			 * We've seen it choose not to use the index and hang the cron process on VUMC production.
+			 */
+			$indexHint = " use index ($indexName) ";
+		}
+		
 		$result = $this->query(
 			"
 				select log_event_id
-				from " . $this->getLogTable() . "
+				from $logTable $indexHint
 				where
 					project_id = ?
 					and ts >= ?
