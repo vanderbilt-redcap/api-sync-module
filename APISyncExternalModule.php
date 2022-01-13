@@ -180,8 +180,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function getAllFieldNames(){
-		$dictionary = REDCap::getDataDictionary($this->getProjectId(), 'array');
-		return array_keys($dictionary);
+		$pid = $this->getProjectId();
+		if(!isset($this->allFieldNames[$pid])){
+			$dictionary = REDCap::getDataDictionary($pid, 'array');
+			$this->allFieldNames[$pid] = array_keys($dictionary);
+		}
+
+		return $this->allFieldNames[$pid];
 	}
 
 	private function addBatchesSinceLastExport($batchBuilder){
