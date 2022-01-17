@@ -253,7 +253,18 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$exportAllRecords = $this->getProjectSetting('export-all-records') === true;
 			if($exportAllRecords){
 				$this->removeProjectSetting('export-all-records');
-				$records = json_decode(REDCap::getData($this->getProjectId(), 'json', null, $recordIdFieldName), true);
+				$records = json_decode(
+					REDCap::getData($this->getProjectId(),
+					'json',
+					null,
+					$recordIdFieldName,
+					null,
+					null,
+					false,
+					false,
+					false,
+					$this->getCachedProjectSetting('export-filter-logic-all')
+				), true);
 
 				foreach($records as $record){
 					// An empty fields array will cause all fields to be pulled.
@@ -750,7 +761,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 			$records = $this->apiRequest($url, $apiKey, [
 				'content' => 'record',
-				'fields' => [$recordIdFieldName]
+				'fields' => [$recordIdFieldName],
+				'filterLogic' => implode(
+					' ' . $project['import-filter-logic-combination-operator'] . ' ',
+					array_filter([
+						$this->getCachedProjectSetting('import-filter-logic-all'),
+						$project['import-filter-logic'],
+					])
+				)
 			]);
 
 			$recordIds = [];
