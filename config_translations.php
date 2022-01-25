@@ -21,7 +21,7 @@ require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
 $export_servers = $module->getSubSettings('export-servers');
 $import_servers = $module->getSubSettings('servers');
 
-function printTranslationsTable($translations = [], $type, $server_type) {
+function printTranslationsTable($translations, $type, $server_type) {
 	$row_count = count($translations);
 	if (!empty($row_count)) {
 		$column_count = count($translations[0]);
@@ -88,7 +88,7 @@ function printProjectCard($project_info) {
 		<div class='loader-container'><div class='loader'></div></div>
 		<?php
 		foreach (['form', 'event'] as $type) {
-			$translations = json_decode($project_info["$settings_prefix$type-translations"]);
+			$translations = json_decode($project_info["$settings_prefix$type-translations"]) ?? [];
 			printTranslationsTable($translations, $type, $project_info['server-type']);
 		}
 		?>
