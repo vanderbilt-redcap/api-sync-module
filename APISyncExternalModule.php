@@ -122,8 +122,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $result->fetch_assoc()['log_event_table'];
 	}
 
-	private function getLastExportedLogId(){
-		$logTable = $this->getLogTable();
+	private function getLogIndexHint($logTable){
+		$result = $this->query("show variables like 'version'", []);
+		$versionParts = explode('.', $result->fetch_assoc()['Value']);
+		if(!($versionParts[0] === '5' && $versionParts[1] === '5')){
+			// Only use index hints on MySQL 5.5.  Newer versions are smarter and shouldn't need them.
+			return '';
+		}
 
 		$result = $this->query("
 			show index from $logTable
@@ -133,19 +138,24 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$row = $result->fetch_assoc();
 		$indexName = $row['Key_name'] ?? null;
 
-		$indexHint = '';
-		if($indexName !== null){
-			/**
-			 * We add the index hint because MySQL 5.5 is really stupid.
-			 * We've seen it choose not to use the index and hang the cron process on VUMC production.
-			 */
-			$indexHint = " use index ($indexName) ";
+		if($indexName === null){
+			return '';
 		}
-		
+
+		/**
+		 * We add the index hint because MySQL 5.5 is really stupid.
+		 * We've seen it choose not to use the index and hang the cron process on VUMC production.
+		 */
+		return " use index ($indexName) ";
+	}
+
+	private function getLastExportedLogId(){
+		$logTable = $this->getLogTable();
+
 		$result = $this->query(
 			"
 				select log_event_id
-				from $logTable $indexHint
+				from $logTable " . $this->getLogIndexHint($logTable) . "
 				where
 					project_id = ?
 					and ts >= ?
