@@ -868,11 +868,15 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 	function filterByFieldList($project, &$instance){
 		$type = $project[$this->getPrefixedSettingName('field-list-type')];
-		$fieldList = $project[$this->getPrefixedSettingName('field-list')] ?? [];
+		$fieldList = $project[$this->getPrefixedSettingName('field-list')];
 
 		if(empty($type)){
 			$type = $this->getCachedProjectSetting($this->getPrefixedSettingName('field-list-type-all'));
 			$fieldList = $this->getCachedProjectSetting($this->getPrefixedSettingName('field-list-all'));
+		}
+
+		if($fieldList === null){
+			$fieldList = [];
 		}
 
 		if($type === 'include'){
