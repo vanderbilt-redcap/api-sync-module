@@ -679,11 +679,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function isTimeToRun($minute, $hour, $server){
-		if(empty($minute)){
+		if(!is_numeric($minute)){
 			// Don't sync if this field is not set
 			return false;
 		}
-		else if(empty($hour)){
+		else if(!is_numeric($hour)){
 			// We're syncing hourly, so use the current hour.
 			$hour = 'H';
 		}
