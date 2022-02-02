@@ -200,7 +200,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $this->allFieldNames[$pid];
 	}
 
-	private function addBatchesSinceLastExport($batchBuilder){
+	private function addBatchesSinceLastExport($batchBuilder, $recordIds){
+		$recordIds = array_flip($recordIds);
+
 		$lastExportedLogId = $this->getLastExportedLogId();		
 		$result = $this->query("
 			select log_event_id, pk, event, data_values
@@ -216,8 +218,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		]);
 
 		while($row = $result->fetch_assoc()){
+			$recordId = $row['pk'];
+			if(!isset($recordIds[$recordId])){
+				continue;
+			}
+
 			$fields = $this->getChangedFieldNamesForLogRow($row['data_values'], $this->getAllFieldNames());
-			$batchBuilder->addEvent($row['log_event_id'], $row['pk'], $row['event'], $fields);
+			$batchBuilder->addEvent($row['log_event_id'], $recordId, $row['event'], $fields);
 		}
 	}
 
@@ -259,30 +266,29 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 			$batchBuilder = new BatchBuilder($this->getExportBatchSize());
 			$latestLogId = $this->getLatestLogId();
+			$allRecordsIds = array_column(json_decode(
+				REDCap::getData($this->getProjectId(),
+				'json',
+				null,
+				$recordIdFieldName,
+				null,
+				null,
+				false,
+				false,
+				false,
+				$this->getCachedProjectSetting('export-filter-logic-all')
+			), true), $recordIdFieldName);
 
 			$exportAllRecords = $this->getProjectSetting('export-all-records') === true;
 			if($exportAllRecords){
 				$this->removeProjectSetting('export-all-records');
-				$records = json_decode(
-					REDCap::getData($this->getProjectId(),
-					'json',
-					null,
-					$recordIdFieldName,
-					null,
-					null,
-					false,
-					false,
-					false,
-					$this->getCachedProjectSetting('export-filter-logic-all')
-				), true);
-
-				foreach($records as $record){
+				foreach($allRecordsIds as $recordId){
 					// An empty fields array will cause all fields to be pulled.
-					$batchBuilder->addEvent($latestLogId, $record[$recordIdFieldName], 'UPDATE', []);
+					$batchBuilder->addEvent($latestLogId, $recordId, 'UPDATE', []);
 				}
 			}
 			else{
-				$this->addBatchesSinceLastExport($batchBuilder);
+				$this->addBatchesSinceLastExport($batchBuilder, $allRecordsIds);
 			}
 
 			$batches = $batchBuilder->getBatches();
