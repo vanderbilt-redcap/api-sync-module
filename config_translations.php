@@ -120,14 +120,16 @@ if (empty($import_servers) and empty($export_servers)) {
 foreach ($import_servers as $server_i => $server) {
 	$url = $server['redcap-url'];
 	foreach ($server['projects'] as $project_i => $project) {
+		if (empty($url) or empty($project['api-key'])) {
+			continue;
+		}
+
 		$project['project-name'] = $module->getRemoteProjectTitle($url, $project['api-key']);
 		$project['url'] = $url;
 		$project['server-index'] = $server_i + 1;
 		$project['server-type'] = 'import';
 		$project['project-index'] = $project_i + 1;
-		if (empty($url) or empty($project['api-key'])) {
-			continue;
-		}
+
 		printProjectCard($project);
 	}
 }
