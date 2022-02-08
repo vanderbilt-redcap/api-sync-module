@@ -1467,10 +1467,15 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		// save translations to appropriate setting key/index
 		$this->saveTranslations($translation_matrix, $validation['target_server_type'],$validation['target_server_index'], $validation['target_project_index']);
 	}
-	
+
+	// This can be removed once the min REDCap version includes this function in the framework.
+	function sanitizeAPIToken($token){
+		return preg_replace('/[^\dABCDEF]/', '', $token);
+	}
+
 	private function validateImport() {
 		// returns an error string or, settings valid, an array with target project/server information
-		$project_api_key = preg_replace('[^\dABCDEF]', '', $_POST['project-api-key']);
+		$project_api_key = $this->sanitizeAPIToken($_POST['project-api-key']);
 		$server_url = $_POST['server-url'];
 		$server_type = htmlentities($_POST['server-type'], ENT_QUOTES);
 		
