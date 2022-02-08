@@ -1549,30 +1549,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			'format' => 'json',
 			'returnFormat' => 'json'
 		);
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, $api_url);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-		curl_setopt($ch, CURLOPT_VERBOSE, 0);
-		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-		curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-		curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
-		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-		curl_setopt($ch, CURLOPT_FRESH_CONNECT, 1);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data, '', '&'));
-		$output = curl_exec($ch);
-		curl_close($ch);
-		
-		try {
-			$obj = json_decode($output);
-		}
-		catch (\Exception $e) {
-			// bad json
-		}
-		if (!empty($obj->project_title)) {
-			return $obj->project_title;
-		}
-		return "";
+
+		$response = $this->apiRequest($api_url, $api_key, $data);
+
+		return $response['project_title'];
 	}
 
 	function cacheProjectSetting($key, $value){
