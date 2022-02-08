@@ -188,14 +188,14 @@ foreach ($export_servers as $server_i => $server) {
 	</div>
 </div>
 <script type='text/javascript'>
-	api_sync_module = {
-		css_url: '<?= $module->getUrl("css/config_translations.css") ?>',
-		import_error_message: "<?= $import_error_message ?>",
-		table_saved_error_message: "<?= $table_saved_error_message ?>",
-		pid: "<?= $module->getProjectId() ?>",
-		translation_table_cell: '<?= $module::TRANSLATION_TABLE_CELL; ?>',
-		ajax_endpoint: '<?= $module->getUrl("config_translations.php"); ?>'
-	}
+	api_sync_module = <?=json_encode([
+		'css_url' => $module->getUrl("css/config_translations.css"),
+		'import_error_message' => '' . $import_error_message,
+		'table_saved_error_message' => '' . $table_saved_error_message,
+		'pid' => $module->getProjectId(),
+		'translation_table_cell' => $module::TRANSLATION_TABLE_CELL,
+		'ajax_endpoint' => $module->getUrl("config_translations.php"),
+	])?>
 </script>
 <script type='text/javascript' src='<?= $module->getUrl('js/config_translations.js') ?>'></script>
 
