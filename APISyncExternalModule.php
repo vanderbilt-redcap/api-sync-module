@@ -276,7 +276,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				false,
 				false,
 				false,
-				$this->getCachedProjectSetting('export-filter-logic-all')
+				/**
+				 * If ever try to add filter logic here again in the future,
+				 * remember a simple export filter logic feature is incompatible with incremental change detection.
+				 * During the periods when a record does not match filter logic, incremental changes for that record are ignored permanently
+				 * (regardless of whether the record matches the filter logic again in the future).
+				 * To work around this, we may need to store the last sync time of each individual record and use it to "catch up"
+				 * with past changes if/when unmatched records begin matching again (likely via a full sync of just those records).
+				 */
 			), true), $recordIdFieldName);
 
 			$exportAllRecords = $this->getProjectSetting('export-all-records') === true;

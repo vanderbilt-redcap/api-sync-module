@@ -59,11 +59,6 @@
 			"type": "text"
 		},
 		{
-			"key": "export-filter-logic-all",
-			"name": "<b>Filter Logic</b> - Used to limit which records are included in the sync.  This will include records in the same way that a report would that uses the same logic and displays only record IDs.  ALL events & instances are synced for matching records",
-			"type": "textarea"
-		},
-		{
 			"key": "export-field-list-type-all",
 			"name": "<b>Field List Type</b> - If left blank, the list below will be ignored",
 			"type": "dropdown",
