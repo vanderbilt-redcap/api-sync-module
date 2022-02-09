@@ -209,6 +209,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			from " . $this->getLogTable() . "
 			where
 				event in ('INSERT', 'UPDATE', 'DELETE')
+				and object_type = 'redcap_data'
 				and project_id = ?
 				and log_event_id > ?
 			order by log_event_id asc
