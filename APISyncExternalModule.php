@@ -1119,7 +1119,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data, '', '&'));
 
 		$tries = 0;
-		while($tries < 3){
+		$sleepTime = 60;
+		while($tries < 7){
 			$output = curl_exec($ch);
 
 			if($this->getCachedProjectSetting('log-requests')){
@@ -1132,9 +1133,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				/**
 				 * This is a CURLE_RECV_ERROR like "SSL read" or "TCP connection reset by peer".
 				 * These are most often cause by temporary network issues.
-				 * Wait a few seconds and try again.
+				 * Wait and try again.
 				 */
-				sleep(3);
+				sleep($sleepTime);
+				$sleepTime *= 2;
 			}
 			else{
 				/**
