@@ -564,15 +564,37 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	private function getImportServers(){
-		return $this->framework->getSubSettings('servers');
+		$servers = $this->framework->getSubSettings('servers');
+		$importTimes = $this->getProjectSetting('last-import-time');
+
+		for($i=0; $i<count($servers); $i++){
+			/**
+			 * Hidden settings are excluded from getSubSettings(),
+			 * so manually add this one back in.
+			 */
+			$servers[$i]['last-import-time'] = $importTimes[$i] ?? null;
+		}
+
+		return $servers;
 	}
 
 	private function handleImports(){
 		$progress = new Progress($this);
 
 		$servers = $this->getImportServers();
+		$syncNow = $this->getProjectSetting('sync-now');
+		$this->removeProjectSetting('sync-now');
+
 		foreach($servers as $server){
-			if($this->isTimeToRunImports($server)){
+			if(
+				$syncNow
+				||
+				$this->isTimeToRun(
+					$server['daily-record-import-minute'],
+					$server['daily-record-import-hour'],
+					$server
+				)
+			){
 				// addServer() will have no effect if the server is already in progress.
 				$progress->addServer($server);
 			}
@@ -675,20 +697,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$hour = $this->getProjectSetting('export-hour');
 
 		return $this->isTimeToRun($minute, $hour, null);
-	}
-
-	private function isTimeToRunImports($server){
-		$syncNow = $this->getProjectSetting('sync-now');
-		if($syncNow){
-			$this->removeProjectSetting('sync-now');
-			return true;
-		}
-
-		return $this->isTimeToRun(
-			$server['daily-record-import-minute'],
-			$server['daily-record-import-hour'],
-			$server
-		);
 	}
 
 	private function isTimeToRun($minute, $hour, $server){
