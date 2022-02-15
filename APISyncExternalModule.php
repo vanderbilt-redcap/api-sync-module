@@ -275,7 +275,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				null,
 				false,
 				false,
-				false,
+				false
 				/**
 				 * If ever try to add filter logic here again in the future,
 				 * remember a simple export filter logic feature is incompatible with incremental change detection.
