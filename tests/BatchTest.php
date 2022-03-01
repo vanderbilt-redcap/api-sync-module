@@ -59,4 +59,25 @@ class BatchTest extends BaseTest{
         $b = new Batch(APISyncExternalModule::DELETE);
         $b->add(1, 1, ['a']);
     }
+
+    function testShouldStartNewBatch(){
+        $assert = function($fields1, $fields2){
+            $b = new Batch(APISyncExternalModule::UPDATE);
+            $b->add(1, 1, $fields1);
+
+            $exceptionThrown = false;
+            try{
+                $b->add(2, 2, $fields2);
+            }
+            catch(\Exception $e){
+                $exceptionThrown = true;
+                $this->assertStringContainsString('not allowed', $e->getMessage());
+            }
+
+            $this->assertTrue($exceptionThrown);
+        };
+
+        $assert(['a'], []);
+        $assert([], ['b']);
+    }
 }

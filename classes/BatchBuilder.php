@@ -29,7 +29,7 @@ class BatchBuilder {
             $fields = [];
         }
         else{
-            if($this->shouldStartNextBatchBeforeUpdate()){
+            if($this->shouldStartNextBatchBeforeUpdate($fields)){
                 $this->startNextBatch(APISyncExternalModule::UPDATE);
             }
         }
@@ -41,7 +41,7 @@ class BatchBuilder {
         $this->batches[] = new Batch($type);
     }
 
-    function shouldStartNextBatchBeforeUpdate(){
+    function shouldStartNextBatchBeforeUpdate($fields){
         $batch = $this->getCurrentBatch();
         return 
             $batch === null // The first batch as not been created yet.
@@ -49,6 +49,8 @@ class BatchBuilder {
             count($batch->getRecordIds()) === $this->batchSize
             ||
             $batch->getType() === APISyncExternalModule::DELETE // DELETEs should be in batches by themselves.
+            ||
+            $batch->shouldStartNewBatch($fields)
         ;
     }
 

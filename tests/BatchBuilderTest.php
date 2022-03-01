@@ -40,4 +40,21 @@ class BatchBuilderTest extends BaseTest{
         $expected[] = new Batch(APISyncExternalModule::UPDATE);
         $assert('UPDATE', ['b']);
     }
+
+    function testShouldStartNewBatch(){
+        $assert = function($fields1, $fields2){
+            $b = new BatchBuilder(100);
+            $b->addEvent(1, 1, APISyncExternalModule::UPDATE, $fields1);
+            $b->addEvent(2, 2, APISyncExternalModule::UPDATE, $fields1);
+            $b->addEvent(3, 3, APISyncExternalModule::UPDATE, $fields2);
+            $b->addEvent(4, 4, APISyncExternalModule::UPDATE, $fields2);
+            
+            $batches = $b->getBatches();
+            $this->assertSame([1,2], $batches[0]->getRecordIds());
+            $this->assertSame([3,4], $batches[1]->getRecordIds());
+        };
+
+        $assert(['a'], []);
+        $assert([], ['b']);
+    }
 }
