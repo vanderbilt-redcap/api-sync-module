@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<psalm autoloader="../../redcap_connect.php" >
+	<projectFiles>
+		<directory name="." />
+		<ignoreFiles allowMissingFiles="true">
+			<directory name="vendor" />
+			<directory name="node_modules" />
+		</ignoreFiles>
+	</projectFiles>
+	<globals>
+		<var name="module" type="Vanderbilt\APISyncExternalModule\APISyncExternalModule" />
+	</globals>
+</psalm>
