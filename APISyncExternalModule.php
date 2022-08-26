@@ -200,7 +200,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $this->allFieldNames[$pid];
 	}
 
-	private function addBatchesSinceLastExport($batchBuilder, $recordIds){
+	private function addBatchesSinceLastExport($specificFieldsBatchBuilder, $allFieldsBatchBuilder, $recordIds){
 		$recordIds = array_flip($recordIds);
 
 		$lastExportedLogId = $this->getLastExportedLogId();		
@@ -225,6 +225,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			}
 
 			$fields = $this->getChangedFieldNamesForLogRow($row['data_values'], $this->getAllFieldNames());
+			if(empty($fields)){
+				$batchBuilder = $allFieldsBatchBuilder;
+			}
+			else{
+				$batchBuilder = $specificFieldsBatchBuilder;
+			}
+
 			$batchBuilder->addEvent($row['log_event_id'], $recordId, $row['event'], $fields);
 		}
 	}
@@ -265,7 +272,15 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 			$startingBatchIndex = 0;
 
-			$batchBuilder = new BatchBuilder($this->getExportBatchSize());
+			/**
+			 * We use separate builders for specific fields & all fields because University of Cincinnati
+			 * ran into a scenario where data_values was maxing out intermittently and a new batch was
+			 * created every time the threshold was crossed back and forth. This created tens of thousands
+			 * of batches for no reason, making an incremental sync much slower than 'export-all-records'.
+			 */
+			$specificFieldsBatchBuilder = new BatchBuilder($this->getExportBatchSize());
+			$allFieldsBatchBuilder = new BatchBuilder($this->getExportBatchSize());
+
 			$latestLogId = $this->getLatestLogId();
 			$allRecordsIds = array_column(json_decode(
 				REDCap::getData($this->getProjectId(),
@@ -292,14 +307,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$this->removeProjectSetting('export-all-records');
 				foreach($allRecordsIds as $recordId){
 					// An empty fields array will cause all fields to be pulled.
-					$batchBuilder->addEvent($latestLogId, $recordId, 'UPDATE', []);
+					$allFieldsBatchBuilder->addEvent($latestLogId, $recordId, 'UPDATE', []);
 				}
 			}
 			else{
-				$this->addBatchesSinceLastExport($batchBuilder, $allRecordsIds);
+				$this->addBatchesSinceLastExport($specificFieldsBatchBuilder, $allFieldsBatchBuilder, $allRecordsIds);
 			}
 
-			$batches = $batchBuilder->getBatches();
+			$batches = $this->mergeBatches($specificFieldsBatchBuilder, $allFieldsBatchBuilder);
 			if(empty($batches)){
 				/**
 				 * No recent changes exist to sync.
@@ -436,6 +451,15 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$this->setProjectSetting('last-exported-log-id', $lastLogId);
 			$this->log("Finished exporting {$type}s for $batchText");
 		}
+	}
+
+	function mergeBatches($builder1, $builder2){
+		$batches = array_merge($builder1->getBatches(), $builder2->getBatches());
+		usort($batches, function($a, $b){
+			return $a->getLastLogId() - $b->getLastLogId();
+		});
+
+		return $batches;
 	}
 
 	private function isCronRunningTooLong(){

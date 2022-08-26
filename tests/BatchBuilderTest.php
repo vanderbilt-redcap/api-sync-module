@@ -57,4 +57,21 @@ class BatchBuilderTest extends BaseTest{
         $assert(['a'], []);
         $assert([], ['b']);
     }
+
+    function testMergeBatches(){
+        $a = new BatchBuilder(100);
+        $a->addEvent(1, 1, APISyncExternalModule::UPDATE, ['a']);
+        $a->addEvent(3, 1, APISyncExternalModule::UPDATE, ['c']);
+
+        $b = new BatchBuilder(100);
+        $b->addEvent(2, 2, APISyncExternalModule::UPDATE, []);
+        $b->addEvent(4, 3, APISyncExternalModule::UPDATE, []);
+
+        $batches = $this->mergeBatches($a, $b);
+        $this->assertSame($batches, $this->mergeBatches($b, $a), "The order of arguments shouldn't matter since we are sorting by log ID.");
+
+        $this->assertSame(2, count($batches));
+        $this->assertSame(['a', 'c'], $batches[0]->getFields());
+        $this->assertSame([], $batches[1]->getFields());
+    }
 }
