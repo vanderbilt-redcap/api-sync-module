@@ -411,7 +411,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 							throw new Exception("The export failed because of a sub-batch size error.  See the API Sync page for project " . $this->getProjectId() . " for details.");
 						}
 
-						$this->exportSubBatch($servers, $type, $subBatchData, $subBatchNumber);
+						$this->exportSubBatch($servers, $type, $subBatchData, $subBatchNumber, $subBatchSize);
 						$subBatchData = [];
 						$subBatchSize = 0;
 						$subBatchNumber++;
@@ -422,12 +422,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 					$isLastRow = $rowIndex === count($data)-1;
 					if($isLastRow){
-						$this->exportSubBatch($servers, $type, $subBatchData, $subBatchNumber);
+						$this->exportSubBatch($servers, $type, $subBatchData, $subBatchNumber, $subBatchSize);
 					}
 				}
 			}
 			else if($type === self::DELETE){
-				$this->exportSubBatch($servers, $type, $recordIds, 1);
+				$this->exportSubBatch($servers, $type, $recordIds, 1, 0);
 			}
 			else{
 				throw new Exception("Unsupported export type: $type");
@@ -474,7 +474,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $projects;
 	}
 
-	private function exportSubBatch($servers, $type, $data, $subBatchNumber){
+	private function exportSubBatch($servers, $type, $data, $subBatchNumber, $subBatchSize){
+		$subBatchSize = round($subBatchSize/1024/1024, 1) . ' MB';
 		$recordIdFieldName = $this->getRecordIdField();
 
 		foreach ($servers as $server) {
@@ -482,9 +483,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$logUrl = $this->formatURLForLogs($url);
 
 			foreach ($this->getProjects($server) as $project) {
-				$getProjectExportMessage = function($action) use ($type, $subBatchNumber, $logUrl, $project){
+				$getProjectExportMessage = function($action) use ($type, $subBatchNumber, $logUrl, $project, $subBatchSize){
 					return "
-						<div>$action exporting $type sub-batch $subBatchNumber to the following project at $logUrl:</div>
+						<div>$action exporting $type sub-batch $subBatchNumber ($subBatchSize) to the following project at $logUrl:</div>
 						<div class='remote-project-title'>" . $project['export-project-name'] . "</div>
 					";
 				};
