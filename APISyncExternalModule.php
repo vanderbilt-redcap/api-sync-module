@@ -867,6 +867,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$formNamesByField[$fieldName] = $field['form_name'];
 		}
 
+		$newData = [];
 		foreach($data as &$instance){
 			if ($prefix) {
 				$instance[$recordIdFieldName] = $prefix . $instance[$recordIdFieldName];
@@ -874,9 +875,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 			$this->removeInvalidIncompleteStatuses($instance, $formNamesByField);
 			$this->filterByFieldList($project, $instance);
+
+			if(!empty($instance)){
+				$newData[] = $instance;
+			}
 		}
 		
-		return $data;
+		return $newData;
 	}
 
 	private function getPrefixedSettingName($name){
