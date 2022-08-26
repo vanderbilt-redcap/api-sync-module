@@ -24,11 +24,9 @@ class APISyncExternalModuleTest extends BaseTest{
             $dataValues .= ' ';
         }
 
-        $expected = ['a'];
+        $actual = $this->getChangedFieldNamesForLogRow($dataValues, ['whatever']);
 
-        $actual = $this->getChangedFieldNamesForLogRow($dataValues, $expected);
-
-        $this->assertSame($expected, $actual);
+        $this->assertSame([], $actual);
     }
 
     function assertFilterByFieldList($typeAll, $fieldListAll, $type, $fieldList, $instance, $expected){

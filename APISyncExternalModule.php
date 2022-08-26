@@ -232,8 +232,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	function getChangedFieldNamesForLogRow($dataValues, $allFieldNames){
 		if(strlen($dataValues) === self::DATA_VALUES_MAX_LENGTH){
 			// The data_values column was maxed out, so all changes were not included.
-			// Sync all fields to make sure all changes are synced.
-			return $allFieldNames;
+			// Return an empty array, which will cause all fields to be synced.
+			return [];
 		}
 
 		preg_match_all('/\n([a-z0-9_]+)/', "\n$dataValues", $matches);
