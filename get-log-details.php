@@ -16,6 +16,6 @@ else{
         echo "No details were found.";
     }
     else{
-        echo $details;
+        echo htmlentities($details, ENT_QUOTES);
     }
 }

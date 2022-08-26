@@ -17,9 +17,29 @@ $results = $module->queryLogs("
 	order by log_id desc
 ", [$start, $end]);
 
+$allowedHtml = [
+	'<div>',
+	'</div>',
+	"<div class='remote-project-title'>",
+	'<b>',
+	'</b>',
+	"<a href='",
+	"' target='_blank'>",
+	'</a>',
+];
+
 $rows = [];
 while($row = $results->fetch_assoc()){
-	$rows[] = $row;
+	$escapedRow = [];
+	foreach($row as $key=>$value){
+		$escapedRow[$key] = htmlentities($value, ENT_QUOTES);
+	}
+
+	foreach($allowedHtml as $s){
+		$escapedRow['message'] = str_replace(htmlentities($s, ENT_QUOTES), html_entity_decode($s, ENT_QUOTES), $escapedRow['message']);
+	}
+
+	$rows[] = $escapedRow;
 }
 
 ?>
