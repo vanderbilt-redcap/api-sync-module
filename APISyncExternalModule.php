@@ -149,7 +149,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		", ['ts', 1]);
 
 		$row = $result->fetch_assoc();
-		$indexName = $row['Key_name'] ?? null;
+		$indexName = db_escape($row['Key_name']) ?? null;
 
 		if($indexName === null){
 			return '';
