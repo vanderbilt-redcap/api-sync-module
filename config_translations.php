@@ -1,4 +1,4 @@
-<?php
+<?php namespace Vanderbilt\APISyncExternalModule;
 if (isset($_POST['project-api-key']) and isset($_POST['server-url'])) {
 	if (isset($_POST['table_saved'])) {
 		$table_saved_error_message = $module->importTranslationsTable();
