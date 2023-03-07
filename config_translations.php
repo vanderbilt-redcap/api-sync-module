@@ -1,4 +1,4 @@
-<?php
+<?php namespace Vanderbilt\APISyncExternalModule;
 if (isset($_POST['project-api-key']) and isset($_POST['server-url'])) {
 	if (isset($_POST['table_saved'])) {
 		$table_saved_error_message = $module->importTranslationsTable();
@@ -81,9 +81,9 @@ function printProjectCard($project_info) {
 	?>
 	<div class='card'>
 		<div class='card-title m-3'>
-			<h3 class='pb-1'><span class='server-type'><?= ucfirst($project_info['server-type']); ?></span> Project <?= $project_info['project-index'] . ': ' . $project_info["{$settings_prefix}project-name"] ?></h3>
-			<span>Server URL: </span><b><span class='server-url'><?= $project_info['url'] ?></span></b>
-			<span class='project-api-key'><?= $project_info['api-key'] ?></span>
+			<h3 class='pb-1'><span class='server-type'><?= ucfirst($project_info['server-type']); ?></span> Project <?= $project_info['project-index'] . ': ' . htmlspecialchars($project_info["{$settings_prefix}project-name"], ENT_QUOTES) ?></h3>
+			<span>Server URL: </span><b><span class='server-url'><?= htmlspecialchars($project_info['url'], ENT_QUOTES) ?></span></b>
+			<span class='project-api-key'><?= htmlspecialchars($project_info['api-key'], ENT_QUOTES) ?></span>
 		</div>
 		<div class='loader-container'><div class='loader'></div></div>
 		<?php

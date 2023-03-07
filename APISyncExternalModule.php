@@ -119,7 +119,20 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	// This method can be removed once it makes it into a REDCap version.
 	private function getLogTable(){
 		$result = $this->query('select log_event_table from redcap_projects where project_id = ?', $this->getProjectId());
-		return $result->fetch_assoc()['log_event_table'];
+		$table = $result->fetch_assoc()['log_event_table'];
+
+		$prefix = 'redcap_log_event';
+		$number = explode($prefix, $table)[1];
+		$verifiedTable = $prefix;
+		if(!empty($number)){
+			$verifiedTable .= (int)$number;
+		}
+
+		if($table !== $verifiedTable){
+			throw new \Exception('An error occurred while generating the verified log table name.');
+		}
+
+		return $verifiedTable;
 	}
 
 	private function getLogIndexHint($logTable){
@@ -132,7 +145,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		", ['ts', 1]);
 
 		$row = $result->fetch_assoc();
-		$indexName = $row['Key_name'] ?? null;
+		$indexName = db_escape($row['Key_name']) ?? null;
 
 		if($indexName === null){
 			return '';
