@@ -125,10 +125,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	private function getLogIndexHint($logTable){
 		$result = $this->query("show variables like 'version'", []);
 		$versionParts = explode('.', $result->fetch_assoc()['Value']);
-		if(!($versionParts[0] === '5' && $versionParts[1] === '5')){
-			// Only use index hints on MySQL 5.5.  Newer versions are smarter and shouldn't need them.
-			return '';
-		}
 
 		$result = $this->query("
 			show index from $logTable
@@ -143,7 +139,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 
 		/**
-		 * We add the index hint because MySQL 5.5 is really stupid.
+		 * We add the index hint because MySQL is really stupid.
 		 * We've seen it choose not to use the index and hang the cron process on VUMC production.
 		 */
 		return " use index ($indexName) ";
