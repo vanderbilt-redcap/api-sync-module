@@ -88,7 +88,7 @@ function printProjectCard($project_info) {
 		<div class='loader-container'><div class='loader'></div></div>
 		<?php
 		foreach (['form', 'event'] as $type) {
-			$translations = json_decode($project_info["$settings_prefix$type-translations"]) ?? [];
+			$translations = json_decode($project_info["$settings_prefix$type-translations"] ?? '[]');
 			printTranslationsTable($translations, $type, $project_info['server-type']);
 		}
 		?>
@@ -142,7 +142,7 @@ foreach ($export_servers as $server_i => $server) {
 		$project['server-index'] = (int)$server_i + 1;
 		$project['server-type'] = 'export';
 		$project['project-index'] = (int)$project_i + 1;
-		$project['api-key'] = $project['export-api-key'];
+		$project['api-key'] = $project['export-api-key'] ?? null;
 		if (empty($url) or empty($project['api-key'])) {
 			continue;
 		}
@@ -190,8 +190,8 @@ foreach ($export_servers as $server_i => $server) {
 <script type='text/javascript'>
 	api_sync_module = <?=json_encode([
 		'css_url' => $module->getUrl("css/config_translations.css"),
-		'import_error_message' => '' . $import_error_message,
-		'table_saved_error_message' => '' . $table_saved_error_message,
+		'import_error_message' => $import_error_message ?? '',
+		'table_saved_error_message' => $table_saved_error_message ?? '',
 		'pid' => $module->getProjectId(),
 		'translation_table_cell' => $module::TRANSLATION_TABLE_CELL,
 		'ajax_endpoint' => $module->getUrl("config_translations.php"),
