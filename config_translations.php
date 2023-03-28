@@ -126,9 +126,9 @@ foreach ($import_servers as $server_i => $server) {
 
 		$project['project-name'] = $module->getRemoteProjectTitle($url, $project['api-key']);
 		$project['url'] = $url;
-		$project['server-index'] = $server_i + 1;
+		$project['server-index'] = (int)$server_i + 1;
 		$project['server-type'] = 'import';
-		$project['project-index'] = $project_i + 1;
+		$project['project-index'] = (int)$project_i + 1;
 
 		printProjectCard($project);
 	}
@@ -139,9 +139,9 @@ foreach ($export_servers as $server_i => $server) {
 	$url = $server['export-redcap-url'];
 	foreach ($server['export-projects'] as $project_i => $project) {
 		$project['url'] = $url;
-		$project['server-index'] = $server_i + 1;
+		$project['server-index'] = (int)$server_i + 1;
 		$project['server-type'] = 'export';
-		$project['project-index'] = $project_i + 1;
+		$project['project-index'] = (int)$project_i + 1;
 		$project['api-key'] = $project['export-api-key'];
 		if (empty($url) or empty($project['api-key'])) {
 			continue;
