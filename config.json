@@ -270,15 +270,13 @@
 						},
 						{
 							"key": "form-translations",
-							"name": "JSON matrix containing form name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
-							"type": "text",
-							"hidden": true
+							"name": "DO NOT MODIFY THIS SETTING. This setting can be safely marked as 'hidden' in config.json once this module is updated to framework version 13. JSON matrix containing form name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+							"type": "text"
 						},
 						{
 							"key": "event-translations",
-							"name": "JSON matrix containing event name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
-							"type": "text",
-							"hidden": true
+							"name": "DO NOT MODIFY THIS SETTING. This setting can be safely marked as 'hidden' in config.json once this module is updated to framework version 13. JSON matrix containing event name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+							"type": "text"
 						}
 					]
 				}
