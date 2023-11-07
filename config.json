@@ -40,7 +40,7 @@
 		},
 		{
 			"key": "export-weekday",
-			"name": "<b>Export Day of Week (0-6)</b><br>• The day of the week on which the export will occur. Sunday = 0, ..., Saturday = 6.<br>• Requires that Export Hour is set. <br>• If omitted, exports will occur daily",
+			"name": "<b>Export Day of Week (0-6)</b><br>• The day of the week on which the export will occur. Sunday = 0, Monday = 1, ..., Saturday = 6.<br>• Requires that Export Hour is set. <br>• If omitted, exports will occur daily",
 			"type": "text"
 		},
 		{
@@ -207,7 +207,7 @@
 				},
 				{
 					"key": "daily-record-import-weekday",
-					"name": "<div style='display: inline-block; vertical-align: top'><b>Import Day of Week (0-6)</b><br>• The day of the week on which the export will occur. Sunday = 0, ..., Saturday = 6.<br>• Requires that Import Hour is set. <br>• If omitted, exports will occur daily</div>",
+					"name": "<div style='display: inline-block; vertical-align: top'><b>Import Day of Week (0-6)</b><br>• The day of the week on which the export will occur. Sunday = 0, Monday = 1, ..., Saturday = 6.<br>• Requires that Import Hour is set. <br>• If omitted, exports will occur daily</div>",
 					"type": "text"
 				},
 				{
