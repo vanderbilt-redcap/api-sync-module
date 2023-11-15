@@ -1,7 +1,7 @@
 {
 	"name": "API Sync",
 	"namespace": "Vanderbilt\\APISyncExternalModule",
-	"framework-version": 5,
+	"framework-version": 10,
 	"description": "Automates exporting/importing to/from remote REDCap servers via the API.  The Data Dictionaries for the local and remote projects are expected to be either identical or compatible.  This module could easily be expanded to support additional scenarios (like automatically syncing the data dictionary as well).",
 	"authors": [
 		{
