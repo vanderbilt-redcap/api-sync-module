@@ -30,12 +30,17 @@
 		},
 		{
 			"key": "export-minute",
-			"name": "<b>Daily/Hourly Export Minute (0-59)</b><br>• The minute on which daily or hourly exports will occur<br>• If omitted, neither daily nor hourly exports will occur",
+			"name": "<b>Weekly/Daily/Hourly Export Minute (0-59)</b><br>• The minute on which weekly, daily, or hourly exports will occur<br>• If omitted, neither weekly nor daily nor hourly exports will occur",
 			"type": "text"
 		},
 		{
 			"key": "export-hour",
-			"name": "<b>Daily Export Hour (0-23)</b><br>• The hour on which daily exports will occur<br>• If omitted, exports will occur hourly.  However, daily exports are recommended whenever possible to minimize server resource usage",
+			"name": "<b>Weekly/Daily Export Hour (0-23)</b><br>• The hour on which weekly or daily exports will occur<br>• If omitted, exports will occur hourly.  However, weekly or daily exports are recommended whenever possible to minimize server resource usage",
+			"type": "text"
+		},
+		{
+			"key": "export-weekday",
+			"name": "<b>Export Day of Week (0-6)</b><br>• The day of the week on which the export will occur. Sunday = 0, Monday = 1, ..., Saturday = 6.<br>• Requires that Export Hour is set. <br>• If omitted, exports will occur daily",
 			"type": "text"
 		},
 		{
@@ -192,12 +197,17 @@
 				},
 				{
 					"key": "daily-record-import-minute",
-					"name": "<div style='display: inline-block; vertical-align: top'><b>Daily/Hourly Import Minute (0-59)</b><br>• The minute on which daily or hourly imports will occur<br>• If omitted, neither daily nor hourly imports will occur</div>",
+					"name": "<div style='display: inline-block; vertical-align: top'><b>Weekly/Daily/Hourly Import Minute (0-59)</b><br>• The minute on which weekly, daily, or hourly imports will occur<br>• If omitted, neither weekly nor daily nor hourly imports will occur</div>",
 					"type": "text"
 				},
 				{
 					"key": "daily-record-import-hour",
-					"name": "<div style='display: inline-block; vertical-align: top'><b>Daily Import Hour (0-23)</b><br>• The hour on which daily imports will occur<br>• If omitted, imports will occur hourly</div>",
+					"name": "<div style='display: inline-block; vertical-align: top'><b>Weekly/Daily Import Hour (0-23)</b><br>• The hour on which weekly or daily imports will occur<br>• If omitted, imports will occur hourly</div>",
+					"type": "text"
+				},
+				{
+					"key": "daily-record-import-weekday",
+					"name": "<div style='display: inline-block; vertical-align: top'><b>Import Day of Week (0-6)</b><br>• The day of the week on which the export will occur. Sunday = 0, Monday = 1, ..., Saturday = 6.<br>• Requires that Import Hour is set. <br>• If omitted, exports will occur daily</div>",
 					"type": "text"
 				},
 				{

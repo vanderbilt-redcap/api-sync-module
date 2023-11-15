@@ -626,7 +626,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				||
 				$this->isTimeToRun(
 					$server['daily-record-import-minute'],
-					$server['daily-record-import-hour'],
+                    $server['daily-record-import-hour'],
+                    $server['daily-record-import-weekday'],
 					$server
 				)
 			){
@@ -729,12 +730,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 
 		$minute = $this->getProjectSetting('export-minute');
-		$hour = $this->getProjectSetting('export-hour');
+        $hour = $this->getProjectSetting('export-hour');
+        $weekday = $this->getProjectSetting('export-weekday');
 
-		return $this->isTimeToRun($minute, $hour, null);
+		return $this->isTimeToRun($minute, $hour, $weekday, null);
 	}
 
-	private function isTimeToRun($minute, $hour, $server){
+	private function isTimeToRun($minute, $hour, $weekday, $server){
 		if(!is_numeric($minute)){
 			// Don't sync if this field is not set
 			return false;
@@ -743,6 +745,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			// We're syncing hourly, so use the current hour.
 			$hour = 'H';
 		}
+        if (is_numeric($weekday) && (date("w") != $weekday)) {
+            // Don't sync if weekday is set but doesn't match day of week
+            return false;
+        }
 
 		if($server === null){
 			$lastRunTime = $this->getProjectSetting('last-export-time');
@@ -755,7 +761,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			/**
 			 * This is the first time this sync has run.
 			 * Don't actually sync, but set a last run time to the current time as if we did.
-			 * This is will cause the next scheduled sync to occur normally.
+			 * This will cause the next scheduled sync to occur normally.
 			 */
 			$this->setLastRunTime(time(), $server);
 			return false;
@@ -1255,9 +1261,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		};
 
 		$message = "";
+        $message .= $checkNumericSetting('daily-record-import-weekday', 'import day of week', 0, 6);
 		$message .= $checkNumericSetting('daily-record-import-hour', 'import hour', 0, 23);
 		$message .= $checkNumericSetting('daily-record-import-minute', 'import minute', 0, 59);
-		$message .= $checkNumericSetting('export-hour', 'export hour', 0, 23);
+        $message .= $checkNumericSetting('export-weekday', 'export day of week', 0, 6);
+        $message .= $checkNumericSetting('export-hour', 'export hour', 0, 23);
 		$message .= $checkNumericSetting('export-minute', 'export minute', 0, 59);
 
 		return $message;
