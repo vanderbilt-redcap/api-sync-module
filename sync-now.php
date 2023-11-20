@@ -1,7 +1,7 @@
 <?php
 $retryLogId = (int) @$_POST['retry-log-id'];
 if($retryLogId && !$module->isImportInProgress()){
-    $result = $module->queryLogs("select progress where log_id = $retryLogId");
+    $result = $module->queryLogs("select progress where log_id = ?", [$retryLogId]);
     $row = $result->fetch_assoc();
 
     $module->log("Retrying last failed import from where it left off");
