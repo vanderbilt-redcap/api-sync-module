@@ -1,0 +1,66 @@
+<style>
+#api-sync-module-wrapper .top-button-container{
+    margin-top: 20px;
+    margin-bottom: 50px;
+}
+
+#api-sync-module-wrapper .top-button-container button{
+    margin: 3px;
+    min-width: 200px;
+}
+
+#api-sync-module-wrapper > label{
+    min-width: 70px;
+    margin-right: 5px;
+    text-align: right;
+}
+
+#api-sync-module-wrapper th{
+    font-weight: bold;
+}
+
+#api-sync-module-wrapper .remote-project-title{
+    margin-top: 5px;
+    margin-left: 15px;
+    font-weight: bold;
+}
+
+#api-sync-module-wrapper td.message{
+    max-width: 800px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#api-sync-module-wrapper td:nth-child(3) button{
+    margin: 0px 2px;
+}
+
+#api-sync-module-wrapper a{
+    /* This currently only exists for the output of the formatURLForLogs() method. */
+    text-decoration: underline;
+}
+
+.api-sync-module-spinner{
+    position: relative;
+    height: 60px;
+    margin-top: -10px;
+}
+
+.swal2-popup{
+    font-size: 14px;
+    width: 500px;
+}
+
+.swal2-content{
+    font-weight: 500;
+}
+
+#api-sync-module-log-entries_wrapper{
+    max-width: 900px;
+    margin-right: 18px;
+}
+
+#api-sync-module-log-entries{
+    width: 100%;
+}
+</style>

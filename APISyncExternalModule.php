@@ -3,6 +3,7 @@ namespace Vanderbilt\APISyncExternalModule;
 
 require_once __DIR__ . '/classes/Progress.php';
 require_once __DIR__ . '/classes/BatchBuilder.php';
+require_once __DIR__ . '/classes/DigestLog.php';
 
 use DateTime;
 use Exception;
@@ -1650,6 +1651,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		// Return the $newValue for security scanners that aren't smart enough to detect the exception above.
 		return $newValue;
+	}
+
+	function includeCss($path) {
+		echo '<link rel="stylesheet" href="' . $this->getUrl($path) . '">';
 	}
 }
 

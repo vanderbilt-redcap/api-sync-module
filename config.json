@@ -306,6 +306,12 @@
 				"icon": "databases_arrow",
 				"url": "config_translations.php",
 				"show-header-and-footer": false
+			},
+			{
+				"name": "API Sync - Latest Activity",
+				"icon": "list-alt",
+				"url": "log_digest.php",
+				"show-header-and-footer": true
 			}
 		]
 	},
