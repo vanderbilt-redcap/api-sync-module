@@ -118,7 +118,7 @@ class DigestLog
             if (!$batch_progess) {
                 $batch_msg = substr($row['message'], strlen(self::MSG_SUBSTRS["IMPORT_BATCH_FINISH"]));
                 $batch_msg = strtok($batch_msg, ",");
-                $this->batch_progress = " (" . str_replace(" of ", "/", $batch_msg) . ")";
+                $this->batch_progress = " (" . str_replace(" of ", "/", $batch_msg) . " batches)";
             }
             return;
         }
