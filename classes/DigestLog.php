@@ -93,25 +93,19 @@ class DigestLog
         $this->url_statuses[$url]['status'] = $status_msg;
     }
 
-    // analogue of str_starts_with for PHP 7 compatibility
-    private function strStartsWith($haystack, $needle): bool {
-        // discussion for why strncmp was chosen: https://stackoverflow.com/a/2792233/7418735
-        return (strncmp($haystack, $needle, strlen($needle)) === 0);
-    }
-
 
     public function parseLogRow(array $row): void {
-        if ($this->strStartsWith($row['message'], self::MSG_SUBSTRS["ERROR"])) {
+        if (str_starts_with($row['message'], self::MSG_SUBSTRS["ERROR"])) {
             $this->status_flags['error'] = true;
             $this->error_log_id = $row['log_id'];
             return;
         }
-        if ($this->strStartsWith($row['message'], self::MSG_SUBSTRS["CANCEL"])) {
+        if (str_starts_with($row['message'], self::MSG_SUBSTRS["CANCEL"])) {
             $this->status_flags['cancelled'] = true;
             return;
         }
 
-        if ($this->strStartsWith($row['message'], self::MSG_SUBSTRS["IMPORT_BATCH_FINISH"])) {
+        if (str_starts_with($row['message'], self::MSG_SUBSTRS["IMPORT_BATCH_FINISH"])) {
             // parse details for number of records imported in a batch
             // NOTE: this assumes no concurrent import processes for different urls
 
@@ -120,9 +114,9 @@ class DigestLog
         }
 
         // ignore earlier pull events for already quantified urls
-        if ($this->strStartsWith($row['message'], self::MSG_SUBSTRS["IMPORT_START"])) {
+        if (str_starts_with($row['message'], self::MSG_SUBSTRS["IMPORT_START"])) {
             foreach($this->accounted_urls as $url) {
-                if (strpos($row['message'], $url) !== false) {
+                if (str_contains($row['message'], $url)) {
                     $this->resetStatus();
                     return;
                 }
@@ -130,12 +124,12 @@ class DigestLog
         }
 
         foreach($this->unaccounted_urls as $url) {
-            if (strpos($row['message'], $url) !== false) {
+            if (str_contains($row['message'], $url)) {
                 $this->url_statuses[$url]['timestamp'] = htmlentities($row['timestamp'], ENT_QUOTES);
 
-                if ($this->strStartsWith($row['message'], self::MSG_SUBSTRS["IMPORT_FINISH"])) {
+                if (str_starts_with($row['message'], self::MSG_SUBSTRS["IMPORT_FINISH"])) {
                     $this->status_flags['complete'] = true;
-                } elseif ($this->strStartsWith($row['message'], self::MSG_SUBSTRS["IMPORT_START"])) {
+                } elseif (str_starts_with($row['message'], self::MSG_SUBSTRS["IMPORT_START"])) {
                     $this->completeUrlEntry($url);
                     $this->accounted_urls[] = $url;
                 }

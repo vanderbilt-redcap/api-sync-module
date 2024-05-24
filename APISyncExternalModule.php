@@ -1426,7 +1426,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 	private function getProjectTypePrefix(&$project) {
 		foreach ($project as $setting_name => $setting_value) {
-			if (strpos($setting_name, 'export-') !== false) {
+			if (str_contains($setting_name, 'export-')) {
 				return 'export-';
 			}
 		}
@@ -1460,7 +1460,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$form_name = strip_tags(label_decode($form_label));
 		$form_name = preg_replace("/[^a-z0-9_]/", "", str_replace(" ", "_", strtolower(html_entity_decode($form_name, ENT_QUOTES))));
 		// Remove any double underscores, beginning numerals, and beginning/ending underscores
-		while (strpos($form_name, "__") !== false) 		$form_name = str_replace("__", "_", $form_name);
+		while (str_contains($form_name, "__")) 			$form_name = str_replace("__", "_", $form_name);
 		while (substr($form_name, 0, 1) == "_") 		$form_name = substr($form_name, 1);
 		while (substr($form_name, -1) == "_") 			$form_name = substr($form_name, 0, -1);
 		while (is_numeric(substr($form_name, 0, 1))) 	$form_name = substr($form_name, 1);
@@ -1658,9 +1658,20 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 }
 
-// Shim for function that doesn't exist until php 7.
+// Shims for functions that don't exist in all PHP versions
 // This is safe because it's defined in the module's namespace.
 function array_key_first($array){
 	reset($array);
 	return key($array);
+}
+
+if (version_compare(PHP_VERSION, '8.0.0', "<")) {
+	function str_starts_with($haystack, $needle): bool {
+		// discussion for why strncmp was chosen: https://stackoverflow.com/a/2792233/7418735
+		return (strncmp($haystack, $needle, strlen($needle)) === 0);
+	}
+
+	function str_contains($haystack, $needle): bool {
+		return (strpos($haystack, $needle) !== false);
+	}
 }
