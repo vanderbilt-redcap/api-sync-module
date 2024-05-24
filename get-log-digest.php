@@ -1,5 +1,6 @@
 <?php
 $hasDetailsClause = "details != ''";
+const LOG_WINDOW_SIZE = 100;
 
 if(version_compare(REDCAP_VERSION, '10.8.2', '<')){
 	// This REDCap version does not support functions or comparisons in select log queries.
@@ -27,7 +28,7 @@ $results = $module->queryLogs("
 while($row = $results->fetch_assoc()){
 	$start_log_id = $row['max'];
 	$min_log_id = $row['min'];
-	$end_log_id = $start_log_id - 10;
+	$end_log_id = $start_log_id - LOG_WINDOW_SIZE;
 }
 
 $message_subtrings = $digestLog::createLikeStatements();
@@ -51,7 +52,7 @@ do  {
 	$all_accounted = $digestLog->isDone();
 
 	$start_log_id = $end_log_id;
-	$end_log_id = max($end_log_id - 10, $min_log_id);
+	$end_log_id = max($end_log_id - LOG_WINDOW_SIZE, $min_log_id);
 	if ($start_log_id == $end_log_id) { $all_accounted = true; }
 } while (!$all_accounted);
 

@@ -5,7 +5,7 @@ class DigestLog
 {
     private $accounted_urls = [];
     private $unaccounted_urls = [];
-    private $url_statuses;
+    private $url_statuses = [];
     private $status_flags = [
         'error' => false,
         'cancelled' => false,
