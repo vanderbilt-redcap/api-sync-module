@@ -1,4 +1,5 @@
 <?php
+namespace Vanderbilt\APISyncExternalModule;
 $hasDetailsClause = "details != ''";
 const LOG_WINDOW_SIZE = 100;
 
@@ -8,7 +9,7 @@ if(version_compare(REDCAP_VERSION, '10.8.2', '<')){
 	$hasDetailsClause = 1;
 }
 
-$digestLog = new \Vanderbilt\APISyncExternalModule\DigestLog($module);
+$digestLog = new DigestLog($module);
 
 $module_id_query = $module->framework->query(
 	"SELECT external_module_id FROM redcap_external_modules WHERE directory_prefix = ?",
