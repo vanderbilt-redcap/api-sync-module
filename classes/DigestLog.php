@@ -12,13 +12,14 @@ class DigestLog
         'complete' => false
     ];
     private $accumulated_record_imports = 0;
+    private $batch_progress = null;
     private $error_log_id = null;
 
     private const MSG_SUBSTRS = [
         "ERROR" => "An error occurred",
         "CANCEL" => "Cancelling current import",
         "IMPORT_START" => "Started import from",
-        "IMPORT_BATCH_FINISH" => "Import completed successfully for batch",
+        "IMPORT_BATCH_FINISH" => "Import completed successfully for batch ",
         "IMPORT_FINISH" => "Finished import from",
     ];
 
@@ -30,7 +31,7 @@ class DigestLog
         foreach ($unaccounted_urls as $url) {
             $this->url_statuses[$url]['timestamp'] = '';
             $this->url_statuses[$url]['import_source'] = $url;
-            $this->url_statuses[$url]['n_records'] = '0';
+            $this->url_statuses[$url]['n_records'] = null;
             $this->url_statuses[$url]['status'] = 'Never run';
             $this->url_statuses[$url]['error_log_id'] = null;
         }
@@ -41,6 +42,7 @@ class DigestLog
 
     private function resetStatus(): void {
         $this->accumulated_record_imports = 0;
+        $this->batch_foo = null;
         $this->error_log_id = null;
 
         foreach ($this->status_flags as &$flag) { $flag = false; }
@@ -77,13 +79,16 @@ class DigestLog
 
         if ($this->status_flags['complete']) {
             $status_msg = "Complete";
+        } else {
+            // NOTE: this is the most recently completed batch
+            // it might be more useful to append the currently running batch, especially for error messages
+            $status_msg .= $this->batch_progress;
         }
         if($this->status_flags['cancelled']) {
             $status_msg = "This import was cancelled";
         }
         if ($this->status_flags['error']) {
             $status_msg = "An error occurred";
-            // TODO: get details
             $this->url_statuses[$url]['error_log_id'] = $this->error_log_id;
         }
 
@@ -108,8 +113,13 @@ class DigestLog
         if (str_starts_with($row['message'], self::MSG_SUBSTRS["IMPORT_BATCH_FINISH"])) {
             // parse details for number of records imported in a batch
             // NOTE: this assumes no concurrent import processes for different urls
-
             $this->cumRecords($row);
+
+            if (!$batch_progess) {
+                $batch_msg = substr($row['message'], strlen(self::MSG_SUBSTRS["IMPORT_BATCH_FINISH"]));
+                $batch_msg = strtok($batch_msg, ",");
+                $this->batch_progress = " (" . str_replace(" of ", "/", $batch_msg) . ")";
+            }
             return;
         }
 
