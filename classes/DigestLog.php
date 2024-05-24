@@ -115,7 +115,7 @@ class DigestLog
             // NOTE: this assumes no concurrent import processes for different urls
             $this->cumRecords($row);
 
-            if (!$batch_progess) {
+            if (!$this->batch_progress) {
                 $batch_msg = substr($row['message'], strlen(self::MSG_SUBSTRS["IMPORT_BATCH_FINISH"]));
                 $batch_msg = strtok($batch_msg, ",");
                 $this->batch_progress = " (" . str_replace(" of ", "/", $batch_msg) . " batches)";
