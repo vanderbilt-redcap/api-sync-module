@@ -10,6 +10,9 @@
 			"institution": "Vanderbilt University Medical Center"
 		}
 	],
+	"compatibility": {
+		"redcap-version-min": "11.2.0"
+	},
 	"permissions": [],
 	"project-settings": [
 		{
@@ -306,6 +309,12 @@
 				"icon": "databases_arrow",
 				"url": "config_translations.php",
 				"show-header-and-footer": false
+			},
+			{
+				"name": "API Sync - Latest Activity",
+				"icon": "list-alt",
+				"url": "log_digest.php",
+				"show-header-and-footer": true
 			}
 		]
 	},
