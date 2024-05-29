@@ -49,7 +49,7 @@ class DigestLog
     }
 
 
-    private function cumRecords(array $row): void {
+    private function accumulateRecords(array $row): void {
         $log_id = $row['log_id'];
         $result = $this->module->queryLogs('select details where log_id = ?', [$log_id]);
         $detail_row = $result->fetch_assoc();
@@ -113,7 +113,7 @@ class DigestLog
         if (str_starts_with($row['message'], self::MSG_SUBSTRS["IMPORT_BATCH_FINISH"])) {
             // parse details for number of records imported in a batch
             // NOTE: this assumes no concurrent import processes for different urls
-            $this->cumRecords($row);
+            $this->accumulateRecords($row);
 
             if (!$this->batch_progress) {
                 $batch_msg = substr($row['message'], strlen(self::MSG_SUBSTRS["IMPORT_BATCH_FINISH"]));
