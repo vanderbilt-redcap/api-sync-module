@@ -1657,21 +1657,3 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		echo '<link rel="stylesheet" href="' . $this->getUrl($path) . '">';
 	}
 }
-
-// Shims for functions that don't exist in all PHP versions
-// This is safe because it's defined in the module's namespace.
-function array_key_first($array){
-	reset($array);
-	return key($array);
-}
-
-if (version_compare(PHP_VERSION, '8.0.0', "<")) {
-	function str_starts_with($haystack, $needle): bool {
-		// discussion for why strncmp was chosen: https://stackoverflow.com/a/2792233/7418735
-		return (strncmp($haystack, $needle, strlen($needle)) === 0);
-	}
-
-	function str_contains($haystack, $needle): bool {
-		return (strpos($haystack, $needle) !== false);
-	}
-}

@@ -10,6 +10,9 @@
 			"institution": "Vanderbilt University Medical Center"
 		}
 	],
+	"compatibility": {
+		"redcap-version-min": "11.2.0"
+	},
 	"permissions": [],
 	"project-settings": [
 		{
