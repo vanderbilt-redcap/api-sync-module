@@ -3,6 +3,9 @@ namespace Vanderbilt\APISyncExternalModule;
 $hasDetailsClause = "details != ''";
 const LOG_WINDOW_SIZE = 100;
 
+$start = $module->requireDateParameter('start', 'Y-m-d');
+$end = $module->requireDateParameter('end', 'Y-m-d');
+
 if(version_compare(REDCAP_VERSION, '10.8.2', '<')){
 	// This REDCap version does not support functions or comparisons in select log queries.
 	// Just always show the details button on older versions.
@@ -24,7 +27,8 @@ $min_log_id = $start_log_id;
 $results = $module->queryLogs("
 	select MAX(log_id) as max, MIN(log_id) as min
 	where external_module_id = ? and project_id = ?
-", [$this_module_id, $module->getProjectId()]);
+	AND timestamp >= ? and timestamp < ?
+", [$this_module_id, $module->getProjectId(), $start, $end]);
 
 while($row = $results->fetch_assoc()){
 	$start_log_id = $row['max'];

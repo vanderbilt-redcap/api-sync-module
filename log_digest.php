@@ -41,6 +41,15 @@
 
 	<div style="color: #800000;font-size: 16px;font-weight: bold;"><?=$module->getModuleName()?> - Latest Activity </div>
 
+	<?php
+	$start = (new DateTime())->sub(date_interval_create_from_date_string('7 days'))->format('Y-m-d');
+	$end = (new DateTime())->format('Y-m-d');
+	?>
+
+	<label>Start Date</label><input name='start' type='date' value='<?=$start?>'><br>
+	<label>End Date</label><input name='end' type='date' value='<?=$end?>'><br>
+	<br>
+
 	<table id="api-sync-module-log-entries" class="table table-striped table-bordered"></table>
 
 	<script>
