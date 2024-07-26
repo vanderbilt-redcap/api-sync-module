@@ -1171,6 +1171,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
 		curl_setopt($ch, CURLOPT_FRESH_CONNECT, 1);
 		curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data, '', '&'));
+		curl_setopt($ch, CURLOPT_PROXY, PROXY_HOSTNAME); // If using a proxy
+		curl_setopt($ch, CURLOPT_PROXYUSERPWD, PROXY_USERNAME_PASSWORD); // If using a proxy
 
 		$tries = 0;
 		$sleepTime = 60;
