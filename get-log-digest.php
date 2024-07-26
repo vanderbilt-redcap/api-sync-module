@@ -27,7 +27,7 @@ $min_log_id = $start_log_id;
 $results = $module->queryLogs("
 	select MAX(log_id) as max, MIN(log_id) as min
 	where external_module_id = ? and project_id = ?
-	AND timestamp >= ? and timestamp < ?
+	AND timestamp >= ? and timestamp < DATE_ADD(?, INTERVAL 1 DAY)
 ", [$this_module_id, $module->getProjectId(), $start, $end]);
 
 while($row = $results->fetch_assoc()){
