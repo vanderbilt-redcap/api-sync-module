@@ -36,6 +36,12 @@ while($row = $results->fetch_assoc()){
 	$end_log_id = $start_log_id - LOG_WINDOW_SIZE;
 }
 
+// Prevent potential infinite loop if no log entries are found in provided time window
+if (is_null($start_log_id) || is_null($min_log_id)) {
+	echo "No activity found in the provided time window, please expand your search.";
+	exit();
+}
+
 $message_subtrings = $digestLog::createLikeStatements();
 
 // NOTE: probably don't need EM id or project_id
