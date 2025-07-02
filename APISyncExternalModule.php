@@ -292,9 +292,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$allFieldsBatchBuilder = new BatchBuilder($this->getExportBatchSize());
 
 			$latestLogId = $this->getLatestLogId();
-			$allRecordsIds = array_column(json_decode(
-				REDCap::getData($this->getProjectId(),
-				'json',
+			$allRecordsIds = array_column(REDCap::getData($this->getProjectId(),
+				'json-array',
 				null,
 				$recordIdFieldName,
 				null,
@@ -310,7 +309,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				 * To work around this, we may need to store the last sync time of each individual record and use it to "catch up"
 				 * with past changes if/when unmatched records begin matching again (likely via a full sync of just those records).
 				 */
-			), true), $recordIdFieldName);
+			), $recordIdFieldName);
 
 			$exportAllRecords = $this->getProjectSetting('export-all-records') === true;
 			if($exportAllRecords){
@@ -387,9 +386,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 					$fields[] = $recordIdFieldName;
 				}
 
-				$data = json_decode(REDCap::getData(
+				$data = REDCap::getData(
 					$this->getProjectId(),
-					'json',
+					'json-array',
 					$recordIds,
 					$fields,
 					[],
@@ -402,7 +401,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 					false,
 					false,
 					$dateShiftDates
-				), true);
+				);
 
 				$subBatchData = [];
 				$subBatchSize = 0;
@@ -529,7 +528,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$apiKey = $project['export-api-key'];
 
 				$args = ['content' => 'record'];
-				
+
+				$prepped_data = [];
 				if($type === self::UPDATE){
 					$prepped_data = $this->prepareData($project, $data, $recordIdFieldName);
 					$args['overwriteBehavior'] = 'overwrite';
@@ -548,6 +548,16 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				}
 
 				$results = $this->apiRequest($url, $apiKey, $args);
+				if (($type === self::UPDATE) && ($project['export-files'] ?? FALSE)) {
+					# import is from the perspective of the remote server
+					$recordIds = [];
+					foreach ($data as $row) {
+						if (!in_array($row[$recordIdFieldName], $recordIds)) {
+							$recordIds[] = $row[$recordIdFieldName];
+						}
+					}
+					$isSuccessful = $this->transferFiles($url, $apiKey, "import", $recordIds, $project, $prepped_data);
+				}
 
 				$this->log(
 					$getProjectExportMessage('Finished'),
@@ -881,15 +891,267 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			'format' => 'json',
 			'records' => $batch
 		]);
-		
+
 		$response = $this->prepareData($project, $response, $recordIdFieldName);
 		
 		$stopEarly = $this->importBatch($project, $batchText, $batchSize, $response, $progress);
-		
+		if (!$stopEarly && ($project['import-files'] ?? FALSE)) {
+			# For clarity, export from the remote to import locally
+			$isSuccessful = $this->transferFiles($url, $apiKey, "export", $batch, $project, $response);
+			if (!$isSuccessful) {
+				$stopEarly = TRUE;
+			}
+		}
+
 		$progress->incrementBatch();
 		if($progress->getBatchIndex() === count($batches) || $stopEarly){
 			$progress->finishCurrentProject();
 		}
+	}
+
+	private static function getTempFilename(): string {
+		do {
+			$tempFilename = APP_PATH_TEMP.bin2hex(random_bytes(20));
+		} while (file_exists($tempFilename));
+		return $tempFilename;
+	}
+	
+	private static function getMyCURLFile(array $data, string $recordId, string $recordIdFieldName, $event, string $repeatInstrument, $instance, string $fileFieldName) {
+		$id = self::getMyFileID($data, $recordId, $recordIdFieldName, $event, $repeatInstrument, $instance, $fileFieldName);
+		if ($id) {
+			$fileInfo = \REDCap::getFile($id);
+			if (isset($fileInfo[0]) && isset($fileInfo[1])) {
+				$mimeType = $fileInfo[0];
+				$fileName = $fileInfo[1];
+				$fileContents = $fileInfo[2];
+				$tempFilename = self::getTempFilename();
+				file_put_contents($tempFilename, $fileContents);
+				$fileOb = curl_file_create($tempFilename, $mimeType, $fileName);
+				# clean up of file has to happen after the cURL call
+				return $fileOb;
+			}
+		}
+		return FALSE;
+	}
+
+	# accesses the filename in the data. If it's an EDOC ID (i.e., numeric), it transforms it into a filename
+	private static function getMyFilename(array $data, string $recordId, string $recordIdFieldName, $event, string $repeatInstrument, $instance, string $fileFieldName): string {
+		$id = self::getMyFileID($data, $recordId, $recordIdFieldName, $event, $repeatInstrument, $instance, $fileFieldName);
+		if (is_numeric($id)) {
+			$info = \REDCap::getFile($id);
+			if (is_array($info) && isset($info[1])) {
+				return $info[1] ?? $id;
+			}
+		}
+		return $id;
+	}
+
+	private static function getMyFileID(array $data, string $recordId, string $recordIdFieldName, $event, string $repeatInstrument, $instance, string $fileFieldName): string {
+		if ($instance === "") {
+			$instance = 1;
+		}
+		foreach ($data as $row) {
+			if (
+				($row[$recordIdFieldName] == $recordId)
+				&& (($row['redcap_event_name'] ?? "") == ($event ?? ""))
+				&& (($row['redcap_repeat_instrument'] ?? "") == $repeatInstrument)
+				&& (($row['redcap_repeat_instance'] ?? 1) == $instance)
+			) {
+				return $row[$fileFieldName] ?? "";
+			}
+		}
+		return "";
+	}
+
+	private static function makeSuccessfulLocalFileDeleteMessage(string $recordId, string $field): string {
+		return "Successfully deleted locally in record $recordId with field $field";
+	}
+
+	private static function makeSuccessfulRemoteFileDeleteMessage(string $server, string $recordId, string $field): string {
+		return "Successfully deleted on the remote server $server in record $recordId with field $field";
+	}
+
+	private static function makeSuccessfulFileTransferMessage(string $actionOnRemote, string $server, string $recordId, string $field): string {
+		$toFrom = ($actionOnRemote == "export") ? "from" : "on";
+		return "Successfully completed $actionOnRemote $toFrom remote server $server in record $recordId with field $field";
+	}
+
+	# returns Boolean of whether it transferred all files successfully
+	private function transferFiles(string $url, string $apiKey, string $actionOnRemote, array $records, array $project, array $sourceData): bool {
+		if (!in_array($actionOnRemote, ["import", "export"])) {
+			throw new \Exception("Invalid action!");
+		}
+		if(empty($project[$this->getPrefixedSettingName('field-list-type')])){
+			$fieldList = $this->getCachedProjectSetting($this->getPrefixedSettingName('field-list-all'));
+		} else {
+			$fieldList = $project[$this->getPrefixedSettingName('field-list')];
+		}
+		$emptyFieldList = empty($fieldList) || ($fieldList === [NULL]);
+		
+		$metadata = $this->getMetadata($this->getProjectId());
+		$fileFields = [];
+		foreach ($metadata as $fieldName => $field) {
+			if (($field['field_type'] == "file") && ($emptyFieldList || in_array($fieldName, $fieldList))) {
+				$fileFields[] = $fieldName;
+			}
+		}
+		if (empty($fileFields)) {
+			return TRUE;
+		}
+  
+		$pid = (int)$this->getProjectId();
+		$recordIdFieldName = $this->getRecordIdField();
+		if ($actionOnRemote == "export") {
+			$destinationData = \REDCap::getData($pid, "json-array", $records, array_merge([$recordIdFieldName], $fileFields));
+		} else {
+			$destinationRequest = [
+				"content" => "record",
+				"records" => $records,
+				"fields" => array_merge([$recordIdFieldName], $fileFields)
+			];
+			# should not fail: records should already be uploaded, without file info
+			$destinationData = $this->apiRequest($url, $apiKey, $destinationRequest);
+		}
+		foreach ($sourceData as $sourceDataRow) {
+			foreach ($fileFields as $fileFieldName) {
+				$recordId = $sourceDataRow[$recordIdFieldName];
+				$event = $sourceDataRow['redcap_event_name'] ?? NULL;
+				$instance = $sourceDataRow['redcap_repeat_instance'] ?? 1;
+				$repeatInstrument = $sourceDataRow['redcap_repeat_instrument'] ?? "";
+				if ($actionOnRemote == "export") {
+					$sourceFilename = $sourceDataRow[$fileFieldName] ?? "";
+					$destinationFilename = self::getMyFilename($destinationData, $recordId, $recordIdFieldName, $event, $repeatInstrument, $instance, $fileFieldName);
+				} else {
+					# $actionOnRemote == import
+					$sourceFilename = self::getMyFilename($sourceData, $recordId, $recordIdFieldName, $event, $repeatInstrument, $instance, $fileFieldName);
+					$destinationFilename = "";
+					foreach ($destinationData as $destinationDataRow) {
+						if (
+							($destinationDataRow[$recordIdFieldName] == $recordId)
+							&& (($destinationDataRow["redcap_event_name"] ?? "") == ($event ?? ""))
+							&& (($destinationDataRow["redcap_repeat_instance"] ?: 1) == $instance)
+							&& (($destinationDataRow["redcap_repeat_instrument"] ?? "") == $repeatInstrument)
+							&& isset($destinationDataRow[$fileFieldName])
+						) {
+							$destinationFilename = $destinationDataRow[$fileFieldName];
+							break;
+						}
+					}
+				}
+				if ($sourceFilename != $destinationFilename) {
+					if (($sourceFilename === "") && ($actionOnRemote == "export")) {
+						# delete local file
+						if ($event) {
+							$uploadRow = [
+								$recordIdFieldName => $recordId,
+								"redcap_event_name" => $event,
+								"redcap_repeat_instance" => $instance,
+								$fileFieldName => ""
+							];
+						} else if ($repeatInstrument) {
+							$uploadRow = [
+								$recordIdFieldName => $recordId,
+								"redcap_repeat_instrument" => $repeatInstrument,
+								"redcap_repeat_instance" => $instance,
+								$fileFieldName => ""
+							];
+						} else {
+							$uploadRow = [
+								$recordIdFieldName => $recordId,
+								$fileFieldName => ""
+							];
+						}
+						$params = [
+							"project_id" => $pid,
+							"dataFormat" => "json-array",
+							"data" => [$uploadRow],
+							"overwriteBehavior" => "overwrite",
+							"skipFileUploadFields" => FALSE      // must be set - REDCap's default is TRUE
+						];
+						$feedback = \REDCap::saveData($params);
+						if (!empty($feedback['errors'] ?? [])) {
+							throw new \Exception("Could not delete $fileFieldName in Record $recordId! ".implode("<br/>\n", $feedback['errors']));
+						} else {
+							$this->log(self::makeSuccessfulLocalFileDeleteMessage($recordId, $fileFieldName));
+							continue;
+						}
+					} else if (($sourceFilename === "") && ($actionOnRemote == "import")) {
+						# delete remote file
+						$requestedAction = "delete";
+					} else {
+						# do requested action to overwrite
+						$requestedAction = $actionOnRemote;
+					}
+					$request = [
+						'content' => 'file',
+						'action' => $requestedAction,
+						'field' => $fileFieldName,
+						'record' => $recordId
+					];
+					if ($event) {
+						$request['event'] = $event;
+					}
+					if ($instance) {
+						$request['repeat_instance'] = $instance;
+					}
+					if (($requestedAction == "import") && $sourceFilename) {
+						$curlFileOb = self::getMyCURLFile($sourceData, $recordId, $recordIdFieldName, $event, $repeatInstrument, $instance, $fileFieldName);
+						if ($curlFileOb) {
+							$request['file'] = $curlFileOb;
+						} else {
+							throw new \Exception("Could not create file to import!");
+						}
+					}
+
+					$response = $this->apiRequest($url, $apiKey, $request);
+					if (isset($request['file'])) {
+						# clean up has to happen after the cURL call
+						unlink($request['file']->getFilename());
+					}
+
+					if ($requestedAction == "import") {
+						if (!$response["success"]) {
+							return FALSE;
+						} else {
+							$this->log(self::makeSuccessfulFileTransferMessage($requestedAction, $url, $recordId, $fileFieldName));
+						}
+					} else if ($requestedAction == "delete") {
+						if (!$response["success"]) {
+							return FALSE;
+						} else {
+							$this->log(self::makeSuccessfulRemoteFileDeleteMessage($url, $recordId, $fileFieldName));
+						}
+					} else if ($response) {
+						# $requestedAction == export
+						$newFilename = $response["filename"];
+						if ($newFilename === "") {
+							throw new \Exception("No filename detected with $fileFieldName in Record $recordId!");
+						}
+						$fileContents = $response["contents"];
+						# add the suffix to get the mime type in case $newFilename is not supported, as in before REDCap v13.11.3
+						$tempSuffix = pathinfo($newFilename, PATHINFO_EXTENSION);
+						$tempDot = $tempSuffix ? "." : "";
+						$tempFilename = self::getTempFilename().$tempDot.$tempSuffix;
+						file_put_contents($tempFilename, $fileContents);
+						$newId = \REDCap::storeFile($tempFilename, $pid, $newFilename);
+						unlink($tempFilename);
+						if ($newId > 0) {
+							$fileSaveSuccessful = \REDCap::addFileToField($newId, $pid, $recordId, $fileFieldName, $event, $instance);
+							if ($fileSaveSuccessful) {
+								$this->log(self::makeSuccessfulFileTransferMessage($requestedAction, $url, $recordId, $fileFieldName));
+							} else {
+								throw new \Exception("Error when saving $fileFieldName in Record $recordId!");
+							}
+						} else {
+							throw new \Exception("Could not save $fileFieldName in Record $recordId!");
+						}
+					} else {
+						throw new \Exception("No remote server response when importing from $fileFieldName from Record $recordId!");
+					}
+				}
+			}
+		}
+		return TRUE;
 	}
 
 	private function prepareData(&$project, $data, $recordIdFieldName){
@@ -1042,8 +1304,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$this->log("Importing $batchText (and overwriting matching local records)");
 			$results = \REDCap::saveData(
 					(int)$this->getProjectId(),
-					'json',
-					json_encode($chunk),
+					'json-array',
+					$chunk,
 					'overwrite',
 					null,
 					null,
@@ -1128,6 +1390,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$domainAndPath = array_pop($parts);
 		$protocol = array_pop($parts);
 		$destinationIsLocalhost = $this->isLocalhost($domainAndPath);
+		$isFileImport = ($data['action'] === 'import') && ($data['content'] === "file");
+		$isFileDelete = ($data['action'] === 'delete') && ($data['content'] === "file");
+		$isFileExport = ($data['action'] === 'export') && ($data['content'] === "file");
 		
 		if(
 			empty($protocol) // Add https if missing
@@ -1170,9 +1435,16 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
 		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
 		curl_setopt($ch, CURLOPT_FRESH_CONNECT, 1);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data, '', '&'));
+		if (!$isFileImport) {
+			curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data, '', '&'));
+		} else {
+			curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+		}
 		curl_setopt($ch, CURLOPT_PROXY, PROXY_HOSTNAME); // If using a proxy
 		curl_setopt($ch, CURLOPT_PROXYUSERPWD, PROXY_USERNAME_PASSWORD); // If using a proxy
+		if ($isFileExport) {
+			curl_setopt($ch, CURLOPT_HEADER, true);
+		}
 
 		$tries = 0;
 		$sleepTime = 60;
@@ -1206,11 +1478,15 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 
 		$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		$headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
 		$error = curl_error($ch);
 
 		curl_close($ch);
 
-		if(!empty($error)){
+		if ($isFileImport || $isFileDelete) {
+			# to return information is passed back
+			return ["success" => TRUE];
+		} else if(!empty($error)){
 			throw new Exception("CURL Error $errorNumber: $error");
 		}
 		else if(empty($output)){
@@ -1224,6 +1500,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$httpCode === 400
 				&&
 				$data['action'] === 'delete'
+				&&
+				is_array($decodedOutput)
 				&&
 				$decodedOutput['error'] === $GLOBALS['lang']['api_131'] . ' ' . $data['records'][0]
 			){
@@ -1242,11 +1520,40 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			}
 		}
 
-		if(!$decodedOutput){
+		if ($isFileExport && ($decodedOutput === NULL)) {
+			# cURL returns file contents, not a JSON => place in array
+			$header = substr($output, 0, $headerSize);
+			$body = substr($output, $headerSize);
+			return [
+				"filename" => self::getFilenameFromHeader($header),
+				"mimeType" => self::getMimeTypeFromHeader($header),
+				"contents" => $body
+			]; 
+		} else if($decodedOutput === NULL){
 			throw new Exception("An unexpected response was returned: $output");
 		}
 
 		return $decodedOutput;
+	}
+
+	private static function getFilenameFromHeader(string $header): string {
+		if (preg_match('/Content-Disposition:.*?filename="(.+?)"/i', $header, $matches)) {
+			return $matches[1];
+		} else if (preg_match('/Content-Disposition:.*?filename=([^; ]+)/i', $header, $matches)) {
+			return rawurldecode($matches[1]);
+		} else if (preg_match('/Content-Type:\s*[^;\s]+;\sname="(.+?)"/i', $header, $matches)) {
+			return $matches[1];
+		} else if (preg_match('/Content-Type:\s*[^;\s]+;\sname=([^; ]+)"/i', $header, $matches)) {
+			return rawurldecode($matches[1]);
+		}
+		return "";
+	}
+
+	private static function getMimeTypeFromHeader(string $header): string {
+		if (preg_match('/Content-Type:\s*([^;\s]+)/i', $header, $matches)) {
+			return rawurldecode($matches[1]);
+		}
+		return "";
 	}
 
 	function validateSettings($settings){
