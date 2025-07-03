@@ -955,7 +955,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				($row[$recordIdFieldName] == $recordId)
 				&& (($row['redcap_event_name'] ?? "") == ($event ?? ""))
 				&& (($row['redcap_repeat_instrument'] ?? "") == $repeatInstrument)
-				&& (($row['redcap_repeat_instance'] ?? 1) == $instance)
+				&& (($row['redcap_repeat_instance'] ?: 1) == $instance)
 			) {
 				return $row[$fileFieldName] ?? "";
 			}
@@ -1016,7 +1016,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			foreach ($fileFields as $fileFieldName) {
 				$recordId = $sourceDataRow[$recordIdFieldName];
 				$event = $sourceDataRow['redcap_event_name'] ?? NULL;
-				$instance = $sourceDataRow['redcap_repeat_instance'] ?? 1;
+				$instance = $sourceDataRow['redcap_repeat_instance'] ?: 1;
 				$repeatInstrument = $sourceDataRow['redcap_repeat_instrument'] ?? "";
 				if ($actionOnRemote == "export") {
 					$sourceFilename = $sourceDataRow[$fileFieldName] ?? "";
@@ -1041,7 +1041,15 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				if ($sourceFilename != $destinationFilename) {
 					if (($sourceFilename === "") && ($actionOnRemote == "export")) {
 						# delete local file
-						if ($event) {
+						if ($event && $repeatInstrument) {
+							$uploadRow = [
+								$recordIdFieldName => $recordId,
+								"redcap_event_name" => $event,
+								"redcap_repeat_instrument" => $repeatInstrument,
+								"redcap_repeat_instance" => $instance,
+								$fileFieldName => ""
+							];
+						} else if ($event) {
 							$uploadRow = [
 								$recordIdFieldName => $recordId,
 								"redcap_event_name" => $event,
@@ -1136,7 +1144,15 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 						$newId = \REDCap::storeFile($tempFilename, $pid, $newFilename);
 						unlink($tempFilename);
 						if ($newId > 0) {
-							$fileSaveSuccessful = \REDCap::addFileToField($newId, $pid, $recordId, $fileFieldName, $event, $instance);
+							$eventNum = NULL;
+							if ($event) {
+								$Proj = new \Project($pid);    // REDCap has to be in a project context
+								$eventNum = $Proj->getEventIdUsingUniqueEventName($event);
+								if (!$eventNum) {
+									throw new \Exception("Could not find an event number for $event!");
+								}
+							}
+							$fileSaveSuccessful = \REDCap::addFileToField($newId, $pid, $recordId, $fileFieldName, $eventNum, $instance);
 							if ($fileSaveSuccessful) {
 								$this->log(self::makeSuccessfulFileTransferMessage($requestedAction, $url, $recordId, $fileFieldName));
 							} else {
