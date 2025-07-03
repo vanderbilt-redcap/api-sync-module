@@ -1053,7 +1053,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 							$uploadRow = [
 								$recordIdFieldName => $recordId,
 								"redcap_event_name" => $event,
-								"redcap_repeat_instance" => $instance,
+								"redcap_repeat_instance" => $sourceDataRow['redcap_repeat_instance'],  // blank if not repeating
 								$fileFieldName => ""
 							];
 						} else if ($repeatInstrument) {
@@ -1076,7 +1076,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 							"overwriteBehavior" => "overwrite",
 							"skipFileUploadFields" => FALSE      // must be set - REDCap's default is TRUE
 						];
+						error_log("Uploading ".json_encode($params));
 						$feedback = \REDCap::saveData($params);
+						error_log("Got feedback: ".json_encode($feedback));
 						if (!empty($feedback['errors'] ?? [])) {
 							throw new \Exception("Could not delete $fileFieldName in Record $recordId! ".implode("<br/>\n", $feedback['errors']));
 						} else {
@@ -1125,7 +1127,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 						}
 					} else if ($requestedAction == "delete") {
 						if (!$response["success"]) {
-							return FALSE;
+							$errorMessage = isset($response['error']) ? " ".$response['error'] : "";
+							throw new \Exception("Could not delete $fileFieldName on Record $recordId on remote server $url".$errorMessage);
 						} else {
 							$this->log(self::makeSuccessfulRemoteFileDeleteMessage($url, $recordId, $fileFieldName));
 						}
@@ -1500,6 +1503,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		curl_close($ch);
 
 		if ($isFileImport || $isFileDelete) {
+			$decodedOutput = json_decode($output, true);
+			if (($decodedOutput !== NULL) && !empty($decodedOutput['error'])) {
+				return [
+					"success" => FALSE,
+					"error" => $decodedOutput['error']
+				];
+			}
 			# to return information is passed back
 			return ["success" => TRUE];
 		} else if(!empty($error)){
