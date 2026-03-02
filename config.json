@@ -11,7 +11,8 @@
 		}
 	],
 	"compatibility": {
-		"redcap-version-min": "11.2.0"
+		"php-version-min": "7.3.0",
+		"redcap-version-min": "12.5.2"
 	},
 	"permissions": [],
 	"project-settings": [
@@ -133,6 +134,11 @@
 									"value": "exclude"
 								}
 							]
+						},
+						{
+							"key": "export-files",
+							"name": "Check to export files <strong>only when the filename has changed</strong>. When exported, any files on the server will be overwritten by the new files. Exporting files can significantly increase the time required to sync a project. <strong>The holder of the API token must have Delete Record privileges on the remote server.</strong>",
+							"type": "checkbox"
 						},
 						{
 							"key": "export-field-list",
@@ -280,6 +286,11 @@
 							"name": "Field List",
 							"type": "field-list",
 							"repeatable": true
+						},
+												{
+							"key": "import-files",
+							"name": "Check to import files <strong>only when the filename has changed</strong>. Files that you have saved <strong>will be replaced</strong> by any downloaded files. Importing files can significantly increase the amount of time required to sync a project.",
+							"type": "checkbox"
 						},
 						{
 							"key": "form-translations",
