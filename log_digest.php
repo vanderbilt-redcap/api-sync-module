@@ -150,9 +150,9 @@
 
 							// Only allow retrying the last failed import.
 							if(row.failure && meta.row === 1){
-								var form = $('#api-sync-module-wrapper form.retry')
-								form.find('input[name=retry-log-id]').val(logId)
-								form.show()
+								var retryRow = $('#api-sync-module-wrapper .retry')
+                                retryRow.find('input[name=retry-log-id]').val(logId)
+                                retryRow.show()
 							}
 
 							return html

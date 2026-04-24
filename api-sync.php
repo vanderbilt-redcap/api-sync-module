@@ -42,6 +42,10 @@
 			margin-bottom: 50px;
 		}
 
+        #api-sync-module-wrapper table.top-button-container td:first-child{
+            width:150px;
+        }
+
 		#api-sync-module-wrapper .top-button-container button{
 			margin: 3px;
 			min-width: 200px;
@@ -105,26 +109,20 @@
 
 	<div style="color: #800000;font-size: 16px;font-weight: bold;"><?=$module->getModuleName()?></div>
 
-	<div class="top-button-container">
-		<button class="api-sync-export-queued-button">Export Queued Records</button> - Exports recently added/updated/deleted records now.
-		<br>
-		<button class="api-sync-export-all-button">Export All Records</button> - Exports all existing records now.  No records will be removed.
-		<br>
-		<button class="api-sync-clear-export-queue-button">Clear Export Queue</button> - Unqueues any records currently queued for export.
-		<br>
-		<button class="api-sync-cancel-export-button">Cancel Export</button> - Cancels the active export.
-		<br>
-		<button class="api-sync-delete-request-content-logs">Delete Request Content Logs</button> - Deletes all logs created by the "Log request contents & responses" setting.
-		<?php
-		$module->renderSyncNowHtml();
-		?>
-	</div>
+	<table class="top-button-container">
+        <tr><td><button class="api-sync-export-queued-button">Export Queued Records</button></td><td>Exports recently added/updated/deleted records now.</td></tr>
+        <tr><?php echo $module->renderExportNowHtml(); ?></tr>
+        <tr><td><button class="api-sync-clear-export-queue-button">Clear Export Queue</button></td><td>Unqueues any records currently queued for export.</td></tr>
+        <tr><td><button class="api-sync-cancel-export-button">Cancel Export</button></td><td>Cancels the active export.</td></tr>
+        <tr><td><button class="api-sync-delete-request-content-logs">Delete Request Content Logs</button></td><td>Deletes all logs created by the "Log request contents & responses" setting.</td></tr>
+        <?php $module->renderSyncNowHtml(); ?>
+	</table>
 
 	<h5>Recent Log Entries</h5>
 	<p>(refresh the page to see the latest)</p>
 
 	<?php
-	$start = (new DateTime())->sub(date_interval_create_from_date_string('7 days'))->format('Y-m-d');
+    $start = (new DateTime())->sub(date_interval_create_from_date_string('7 days'))->format('Y-m-d');
 	$end = (new DateTime())->format('Y-m-d');
 	?>
 
@@ -141,7 +139,8 @@
 		})
 
 		$(function(){
-			var ajaxRequest = function(args) {
+			async function ajaxRequest(args) {
+                args.caller.disabled = true;
 				if(args.successMessageSuffix === undefined){
 					args.successMessageSuffix = '  Check this page again after about a minute to see export progress logs.'
 				}
@@ -156,7 +155,7 @@
 				})
 
 				var startTime = Date.now()
-				$.post(args.url, { redcap_csrf_token: '<?= $module->getCSRFToken() ?>'}, function (response) {
+				await $.post(args.url, { redcap_csrf_token: '<?= $module->getCSRFToken() ?>'}, function (response) {
 					var millisPassed = Date.now() - startTime
 					var delay = 2000 - millisPassed
 					if (delay < 0) {
@@ -172,11 +171,19 @@
 							console.log('API Sync AJAX Response:', response)
 						}
 					}, delay)
-				})
+				}).done(function(response) {
+                    args.caller.disabled = false;
+                    return new Promise(async (resolve,reject) => {
+                        setTimeout(() => {
+                            resolve("https://example.com/");
+                        }, 200);
+                    });
+                });
 			}
 
 			$('.api-sync-export-queued-button').click(function(){
 				ajaxRequest({
+                    caller: this,
 					url: <?=json_encode($module->getUrl('export-now.php'))?>,
 					loadingMessage: 'Marking queued records for export now...',
 					successMessage: 'Queued records have been marked for export now.'
@@ -185,6 +192,7 @@
 
 			$('.api-sync-export-all-button').click(function(){
 				ajaxRequest({
+                    caller: this,
 					url: <?=json_encode($module->getUrl('export-all-records-now.php'))?>,
 					loadingMessage: 'Queuing all records for export...',
 					successMessage: 'All records have been queued for export.'
@@ -193,14 +201,18 @@
 
 			$('.api-sync-clear-export-queue-button').click(function(){
 				ajaxRequest({
+                    caller: this,
 					url: <?=json_encode($module->getUrl('clear-export-queue.php'))?>,
 					loadingMessage: 'Clearing export queue...',
 					successMessage: 'The export queue has been cleared!  Only records saved from this moment forward will be included in the next export.'
-				})
+				}).then(function () {
+                    console.log(ExternalModules.Vanderbilt.APISyncExternalModule);
+                });
 			})
 
 			$('.api-sync-cancel-export-button').click(function(){
 				ajaxRequest({
+                    caller: this,
 					url: <?=json_encode($module->getUrl('cancel-export.php'))?>,
 					loadingMessage: 'Cancelling the current export...',
 					successMessage: 'The current export has been cancelled and will stop after the current sub-batch finishes.'
@@ -209,6 +221,7 @@
 
 			$('.api-sync-delete-request-content-logs').click(function(){
 				ajaxRequest({
+                    caller: this,
 					url: <?=json_encode($module->getUrl('delete-request-content-logs.php'))?>,
 					loadingMessage: 'Deleting request content logs...',
 					successMessage: 'Request content logs have been successfully deleted.',
@@ -268,9 +281,9 @@
 
 							// Only allow retrying the last failed import.
 							if(row.failure && meta.row === 1){
-								var form = $('#api-sync-module-wrapper form.retry')
-								form.find('input[name=retry-log-id]').val(logId)
-								form.show()
+								var retryRow = $('#api-sync-module-wrapper .retry')
+                                retryRow.find('input[name=retry-log-id]').val(logId)
+                                retryRow.show()
 							}
 
 							return html

@@ -1,349 +1,352 @@
 {
-	"name": "API Sync",
-	"namespace": "Vanderbilt\\APISyncExternalModule",
-	"framework-version": 10,
-	"description": "Automates exporting/importing to/from remote REDCap servers via the API.  The Data Dictionaries for the local and remote projects are expected to be either identical or compatible.  This module could easily be expanded to support additional scenarios (like automatically syncing the data dictionary as well).",
-	"authors": [
-		{
-			"name": "Mark McEver",
-			"email": "datacore@vumc.org",
-			"institution": "Vanderbilt University Medical Center"
-		}
-	],
-	"compatibility": {
-		"php-version-min": "7.3.0",
-		"redcap-version-min": "12.5.2"
-	},
-	"permissions": [],
-	"project-settings": [
-		{
-			"key": "error-recipients",
-			"name": "<b>Error Recipients</b> - If left blank, errors will be sent to all users with design rights",
-			"type": "user-list",
-			"repeatable": true
-		},
-		{
-			"key": "log-requests",
-			"name": "<b>Log Request Contents</b> - Only check this <b>TEMPORARILY</b> while debugging, or a significant amount of space will be used in the database",
-			"type": "checkbox"
-		},
-		{
-			"key": "export-descriptive",
-			"name": "<h5 style='margin-top: 10px'>Exports</h5> Exports overwrite remote data with local data. Automatic exports of fields changed since the last export (according the the 'Logging' page) can be configured below.  Initial exports (or exports delayed due to misconfiguration or cron issues) will only sync changes up to one week ago for performance reasons.   All records may also be exported at once via the <b>API Sync</b> page/link in the left menu.",
-			"type": "descriptive"
-		},
-		{
-			"key": "export-minute",
-			"name": "<b>Weekly/Daily/Hourly Export Minute (0-59)</b><br>• The minute on which weekly, daily, or hourly exports will occur<br>• If omitted, neither weekly nor daily nor hourly exports will occur",
-			"type": "text"
-		},
-		{
-			"key": "export-hour",
-			"name": "<b>Weekly/Daily Export Hour (0-23)</b><br>• The hour on which weekly or daily exports will occur<br>• If omitted, exports will occur hourly.  However, weekly or daily exports are recommended whenever possible to minimize server resource usage",
-			"type": "text"
-		},
-		{
-			"key": "export-weekday",
-			"name": "<b>Export Day of Week (0-6)</b><br>• The day of the week on which the export will occur. Sunday = 0, Monday = 1, ..., Saturday = 6.<br>• Requires that Export Hour is set. <br>• If omitted, exports will occur daily",
-			"type": "text"
-		},
-		{
-			"key": "export-exclude-identifiers",
-			"name": "Exclude Identifiers From Exports",
-			"type": "checkbox"
-		},
-		{
-			"key": "export-shift-dates",
-			"name": "Shift Dates",
-			"type": "checkbox"
-		},
-		{
-			"key": "export-batch-size",
-			"name": "<b>Max Records Per Batch</b><br>This value <b>should be left blank</b> to allow auto-calculation unless a more optimal size for the project/servers has been <b>carefully calculated</b>, and the <b>sync is monitored</b> to ensure it completes as quickly as possible to avoid consuming <b>significant server resources</b>",
-			"type": "text"
-		},
-		{
-			"key": "export-sub-batch-size",
-			"name": "<b>Max Megabytes Per Sub-Batch</b><br>This value defaults to <b>7</b> if left blank.  It should be set only with great care while <b>monitoring the sync</b> to ensure it completes as quickly as possible to avoid consuming <b>significant server resources</b>",
-			"type": "text"
-		},
-		{
-			"key": "export-field-list-type-all",
-			"name": "<b>Field List Type</b> - If left blank, the list below will be ignored",
-			"type": "dropdown",
-			"choices": [
-				{
-					"name": "Include - Only the fields listed below will be exported",
-					"value": "include"
-				},
-				{
-					"name": "Exclude - All fields will be exported except those listed below",
-					"value": "exclude"
-				}
-			]
-		},
-		{
-			"key": "export-field-list-all",
-			"name": "Field List",
-			"type": "field-list",
-			"repeatable": true
-		},
-		{
-			"key": "export-servers",
-			"name": "Export Destinations",
-			"type": "sub_settings",
-			"repeatable" : true,
-			"sub_settings" : [
-				{
-					"key": "export-redcap-url",
-					"name": "Remote REDCap URL (ex: redcap.vumc.org)",
-					"type": "text"
-				},
-				{
-					"key": "export-projects",
-					"name": "Projects",
-					"type": "sub_settings",
-					"repeatable" : true,
-					"sub_settings" : [
-						{
-							"key": "export-project-name",
-							"name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'><b>Project Name</b> - This is required, but is only used for local logging and does not have to exactly match the remote project.</div>",
-							"type": "text"
-						},
-						{
-							"key": "export-api-key",
-							"name": "API Key",
-							"type": "text"
-						},
-						{
-							"key": "export-record-id-prefix",
-							"name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'><b>Record ID Prefix</b> - Optional, but highly recommend if data is coming into the destination project from other sources.  This prefix will be prepended to all exported records ids to ensure that they're unique on the destination.</div>",
-							"type": "text"
-						},
-						{
-							"key": "export-field-list-type",
-							"name": "<b>Field List Type</b> - This and the list below override the top level Field List settings shared by all exports.  If left blank, the list below will be ignored",
-							"type": "dropdown",
-							"choices": [
-								{
-									"name": "Include - Only the fields listed below will be exported",
-									"value": "include"
-								},
-								{
-									"name": "Exclude - All fields will be exported except those listed below",
-									"value": "exclude"
-								}
-							]
-						},
-						{
-							"key": "export-files",
-							"name": "Check to export files <strong>only when the filename has changed</strong>. When exported, any files on the server will be overwritten by the new files. Exporting files can significantly increase the time required to sync a project. <strong>The holder of the API token must have Delete Record privileges on the remote server.</strong>",
-							"type": "checkbox"
-						},
-						{
-							"key": "export-field-list",
-							"name": "Field List",
-							"type": "field-list",
-							"repeatable": true
-						},
-						{
-							"key": "export-form-translations",
-							"name": "JSON matrix containing form name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
-							"type": "text",
-							"hidden": true
-						},
-						{
-							"key": "export-event-translations",
-							"name": "JSON matrix containing event name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
-							"type": "text",
-							"hidden": true
-						}
-					]
-				}
-			]
-		},
-		{
-			"key": "import-descriptive",
-			"name": "<h5 style='margin-top: 10px'>Imports</h5> Imports overwrite local data with remote data.  Imports can be configured to occur automatically below, or can be triggered manually via the <b>API Sync</b> page/link in the left menu.  Imports may take a long time on large projects.  In one test case an import took 15 minutes for a project with about 10,000 records and 1,500 fields.",
-			"type": "descriptive"
-		},
-		{
-			"key": "import-filter-logic-all",
-			"name": "<b>Filter Logic</b> - Used to limit which records are included in the sync.  This will include records in the same way that a report would that uses the same logic and displays only record IDs.  ALL events & instances are synced for matching records",
-			"type": "textarea"
-		},
-		{
-			"key": "import-field-list-type-all",
-			"name": "<b>Field List Type</b> - If left blank, the list below will be ignored",
-			"type": "dropdown",
-			"choices": [
-				{
-					"name": "Include - Only the fields listed below will be imported",
-					"value": "include"
-				},
-				{
-					"name": "Exclude - All fields will be imported except those listed below",
-					"value": "exclude"
-				}
-			]
-		},
-		{
-			"key": "import-field-list-all",
-			"name": "Field List",
-			"type": "field-list",
-			"repeatable": true
-		},
-		{
-			"key": "servers",
-			"name": "Import Sources",
-			"type": "sub_settings",
-			"repeatable" : true,
-			"sub_settings" : [
-				{
-					"key": "redcap-url",
-					"name": "Remote REDCap URL (ex: redcap.vumc.org)",
-					"type": "text"
-				},
-				{
-					"key": "daily-record-import-minute",
-					"name": "<div style='display: inline-block; vertical-align: top'><b>Weekly/Daily/Hourly Import Minute (0-59)</b><br>• The minute on which weekly, daily, or hourly imports will occur<br>• If omitted, neither weekly nor daily nor hourly imports will occur</div>",
-					"type": "text"
-				},
-				{
-					"key": "daily-record-import-hour",
-					"name": "<div style='display: inline-block; vertical-align: top'><b>Weekly/Daily Import Hour (0-23)</b><br>• The hour on which weekly or daily imports will occur<br>• If omitted, imports will occur hourly</div>",
-					"type": "text"
-				},
-				{
-					"key": "daily-record-import-weekday",
-					"name": "<div style='display: inline-block; vertical-align: top'><b>Import Day of Week (0-6)</b><br>• The day of the week on which the export will occur. Sunday = 0, Monday = 1, ..., Saturday = 6.<br>• Requires that Import Hour is set. <br>• If omitted, exports will occur daily</div>",
-					"type": "text"
-				},
-				{
-					"key": "last-import-time",
-					"name": "Last Import Time - Do <b>NOT</b> modify this setting",
-					"type": "text",
-					"hidden": true
-				},
-				{
-					"key": "projects",
-					"name": "Projects",
-					"type": "sub_settings",
-					"repeatable" : true,
-					"sub_settings" : [
-						{
-							"key": "api-key",
-							"name": "API Key",
-							"type": "text"
-						},
-						{
-							"key": "record-id-prefix",
-							"name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'><b>Record ID Prefix</b> - If data is being imported from multiple projects or entered manually it is <b>highly recommended</b> to specify a record id prefix.  This prefix will be prepended to all imported records ids to ensure that they're unique.</div>",
-							"type": "text"
-						},
-						{
-							"key": "import-batch-size",
-							"name": "Import Batch Size (optional)",
-							"type": "text"
-						},
-						{
-							"key": "import-filter-logic-combination-operator",
-							"name": "<b>Filter Logic Combination Operator</b> - If <b>Filter Logic</b> is specified for all projects AND this project, this operator will be used to combine the logic",
-							"type": "dropdown",
-							"choices": [
-								{
-									"name": "AND",
-									"value": "AND"
-								},
-								{
-									"name": "OR",
-									"value": "OR"
-								}
-							]
-						},
-						{
-							"key": "import-filter-logic",
-							"name": "<b>Filter Logic</b> - Used to limit which records are included in the sync.  This will include records in the same way that a report would that uses the same logic and displays only record IDs.  ALL events & instances are synced for matching records",
-							"type": "textarea"
-						},
-						{
-							"key": "import-field-list-type",
-							"name": "<b>Field List Type</b> - This and the list below override the top level Field List settings shared by all imports.  If left blank, the list below will be ignored",
-							"type": "dropdown",
-							"choices": [
-								{
-									"name": "Include - Only the fields listed below will be imported",
-									"value": "include"
-								},
-								{
-									"name": "Exclude - All fields will be imported except those listed below",
-									"value": "exclude"
-								}
-							]
-						},
-						{
-							"key": "import-field-list",
-							"name": "Field List",
-							"type": "field-list",
-							"repeatable": true
-						},
-												{
-							"key": "import-files",
-							"name": "Check to import files <strong>only when the filename has changed</strong>. Files that you have saved <strong>will be replaced</strong> by any downloaded files. Importing files can significantly increase the amount of time required to sync a project.",
-							"type": "checkbox"
-						},
-						{
-							"key": "form-translations",
-							"name": "DO NOT MODIFY THIS SETTING. This setting can be safely marked as 'hidden' in config.json once this module is updated to framework version 13. JSON matrix containing form name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
-							"type": "text"
-						},
-						{
-							"key": "event-translations",
-							"name": "DO NOT MODIFY THIS SETTING. This setting can be safely marked as 'hidden' in config.json once this module is updated to framework version 13. JSON matrix containing event name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
-							"type": "text"
-						}
-					]
-				}
-			]
-		}
-	],
-	"links": {
-		"project": [
-			{
-				"name": "API Sync",
-				"icon": "databases_arrow",
-				"url": "api-sync.php",
-				"show-header-and-footer": true
-			},
-			{
-				"name": "API Sync - Configure Translations",
-				"icon": "databases_arrow",
-				"url": "config_translations.php",
-				"show-header-and-footer": false
-			},
-			{
-				"name": "API Sync - Latest Activity",
-				"icon": "list-alt",
-				"url": "log_digest.php",
-				"show-header-and-footer": true
-			}
-		]
-	},
-	"crons": [
-		{
-			"cron_name": "exports",
-			"cron_description": "API Sync External Module - Exports",
-			"method": "cron",
-			"cron_frequency": "60",
-			"cron_max_run_time": "86400"
-		},
-		{
-			"cron_name": "imports",
-			"cron_description": "API Sync External Module - Imports",
-			"method": "cron",
-			"cron_frequency": "60",
-			"cron_max_run_time": "86400",
-			"comment": "Imports are in a separate cron so that long running imports do not prevent real-time exports from occurring."
-		}
-	]
+  "name": "API Sync",
+  "namespace": "Vanderbilt\\APISyncExternalModule",
+  "framework-version": 11,
+  "description": "Automates exporting/importing to/from remote REDCap servers via the API.  The Data Dictionaries for the local and remote projects are expected to be either identical or compatible.  This module could easily be expanded to support additional scenarios (like automatically syncing the data dictionary as well).",
+  "authors": [
+    {
+      "name": "Mark McEver",
+      "email": "datacore@vumc.org",
+      "institution": "Vanderbilt University Medical Center"
+    }
+  ],
+  "compatibility": {
+    "php-version-min": "7.3.0",
+    "redcap-version-min": "12.5.2"
+  },
+  "permissions": [],
+  "project-settings": [
+    {
+      "key": "error-recipients",
+      "name": "<b>Error Recipients</b> - If left blank, errors will be sent to all users with design rights",
+      "type": "user-list",
+      "repeatable": true
+    },
+    {
+      "key": "log-requests",
+      "name": "<b>Log Request Contents</b> - Only check this <b>TEMPORARILY</b> while debugging, or a significant amount of space will be used in the database",
+      "type": "checkbox"
+    },
+    {
+      "key": "export-descriptive",
+      "name": "<h5 style='margin-top: 10px'>Exports</h5> Exports overwrite remote data with local data. Automatic exports of fields changed since the last export (according the the 'Logging' page) can be configured below.  Initial exports (or exports delayed due to misconfiguration or cron issues) will only sync changes up to one week ago for performance reasons.   All records may also be exported at once via the <b>API Sync</b> page/link in the left menu.",
+      "type": "descriptive"
+    },
+    {
+      "key": "export-minute",
+      "name": "<b>Weekly/Daily/Hourly Export Minute (0-59)</b><br>• The minute on which weekly, daily, or hourly exports will occur<br>• If omitted, neither weekly nor daily nor hourly exports will occur",
+      "type": "text"
+    },
+    {
+      "key": "export-hour",
+      "name": "<b>Weekly/Daily Export Hour (0-23)</b><br>• The hour on which weekly or daily exports will occur<br>• If omitted, exports will occur hourly.  However, weekly or daily exports are recommended whenever possible to minimize server resource usage",
+      "type": "text"
+    },
+    {
+      "key": "export-weekday",
+      "name": "<b>Export Day of Week (0-6)</b><br>• The day of the week on which the export will occur. Sunday = 0, Monday = 1, ..., Saturday = 6.<br>• Requires that Export Hour is set. <br>• If omitted, exports will occur daily",
+      "type": "text"
+    },
+    {
+      "key": "export-exclude-identifiers",
+      "name": "Exclude Identifiers From Exports",
+      "type": "checkbox"
+    },
+    {
+      "key": "export-shift-dates",
+      "name": "Shift Dates",
+      "type": "checkbox"
+    },
+    {
+      "key": "export-batch-size",
+      "name": "<b>Max Records Per Batch</b><br>This value <b>should be left blank</b> to allow auto-calculation unless a more optimal size for the project/servers has been <b>carefully calculated</b>, and the <b>sync is monitored</b> to ensure it completes as quickly as possible to avoid consuming <b>significant server resources</b>",
+      "type": "text"
+    },
+    {
+      "key": "export-sub-batch-size",
+      "name": "<b>Max Megabytes Per Sub-Batch</b><br>This value defaults to <b>7</b> if left blank.  It should be set only with great care while <b>monitoring the sync</b> to ensure it completes as quickly as possible to avoid consuming <b>significant server resources</b>",
+      "type": "text"
+    },
+    {
+      "key": "export-field-list-type-all",
+      "name": "<b>Field List Type</b> - If left blank, the list below will be ignored",
+      "type": "dropdown",
+      "choices": [
+        {
+          "name": "Include - Only the fields listed below will be exported",
+          "value": "include"
+        },
+        {
+          "name": "Exclude - All fields will be exported except those listed below",
+          "value": "exclude"
+        }
+      ]
+    },
+    {
+      "key": "export-field-list-all",
+      "name": "Field List",
+      "type": "field-list",
+      "repeatable": true
+    },
+    {
+      "key": "export-servers",
+      "name": "Export Destinations",
+      "type": "sub_settings",
+      "repeatable": true,
+      "sub_settings": [
+        {
+          "key": "export-redcap-url",
+          "name": "Remote REDCap URL (ex: redcap.vumc.org)",
+          "type": "text"
+        },
+        {
+          "key": "export-projects",
+          "name": "Projects",
+          "type": "sub_settings",
+          "repeatable": true,
+          "sub_settings": [
+            {
+              "key": "export-project-name",
+              "name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'><b>Project Name</b> - This is required, but is only used for local logging and does not have to exactly match the remote project.</div>",
+              "type": "text"
+            },
+            {
+              "key": "export-api-key",
+              "name": "API Key",
+              "type": "text"
+            },
+            {
+              "key": "export-record-id-prefix",
+              "name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'><b>Record ID Prefix</b> - Optional, but highly recommend if data is coming into the destination project from other sources.  This prefix will be prepended to all exported records ids to ensure that they're unique on the destination.</div>",
+              "type": "text"
+            },
+            {
+              "key": "export-field-list-type",
+              "name": "<b>Field List Type</b> - This and the list below override the top level Field List settings shared by all exports.  If left blank, the list below will be ignored",
+              "type": "dropdown",
+              "choices": [
+                {
+                  "name": "Include - Only the fields listed below will be exported",
+                  "value": "include"
+                },
+                {
+                  "name": "Exclude - All fields will be exported except those listed below",
+                  "value": "exclude"
+                }
+              ]
+            },
+            {
+              "key": "export-files",
+              "name": "Check to export files <strong>only when the filename has changed</strong>. When exported, any files on the server will be overwritten by the new files. Exporting files can significantly increase the time required to sync a project. <strong>The holder of the API token must have Delete Record privileges on the remote server.</strong>",
+              "type": "checkbox"
+            },
+            {
+              "key": "export-field-list",
+              "name": "Field List",
+              "type": "field-list",
+              "repeatable": true
+            },
+            {
+              "key": "export-form-translations",
+              "name": "JSON matrix containing form name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+              "type": "text",
+              "hidden": true
+            },
+            {
+              "key": "export-event-translations",
+              "name": "JSON matrix containing event name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+              "type": "text",
+              "hidden": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "import-descriptive",
+      "name": "<h5 style='margin-top: 10px'>Imports</h5> Imports overwrite local data with remote data.  Imports can be configured to occur automatically below, or can be triggered manually via the <b>API Sync</b> page/link in the left menu.  Imports may take a long time on large projects.  In one test case an import took 15 minutes for a project with about 10,000 records and 1,500 fields.",
+      "type": "descriptive"
+    },
+    {
+      "key": "import-filter-logic-all",
+      "name": "<b>Filter Logic</b> - Used to limit which records are included in the sync.  This will include records in the same way that a report would that uses the same logic and displays only record IDs.  ALL events & instances are synced for matching records",
+      "type": "textarea"
+    },
+    {
+      "key": "import-field-list-type-all",
+      "name": "<b>Field List Type</b> - If left blank, the list below will be ignored",
+      "type": "dropdown",
+      "choices": [
+        {
+          "name": "Include - Only the fields listed below will be imported",
+          "value": "include"
+        },
+        {
+          "name": "Exclude - All fields will be imported except those listed below",
+          "value": "exclude"
+        }
+      ]
+    },
+    {
+      "key": "import-field-list-all",
+      "name": "Field List",
+      "type": "field-list",
+      "repeatable": true
+    },
+    {
+      "key": "servers",
+      "name": "Import Sources",
+      "type": "sub_settings",
+      "repeatable": true,
+      "sub_settings": [
+        {
+          "key": "redcap-url",
+          "name": "Remote REDCap URL (ex: redcap.vumc.org)",
+          "type": "text"
+        },
+        {
+          "key": "daily-record-import-minute",
+          "name": "<div style='display: inline-block; vertical-align: top'><b>Weekly/Daily/Hourly Import Minute (0-59)</b><br>• The minute on which weekly, daily, or hourly imports will occur<br>• If omitted, neither weekly nor daily nor hourly imports will occur</div>",
+          "type": "text"
+        },
+        {
+          "key": "daily-record-import-hour",
+          "name": "<div style='display: inline-block; vertical-align: top'><b>Weekly/Daily Import Hour (0-23)</b><br>• The hour on which weekly or daily imports will occur<br>• If omitted, imports will occur hourly</div>",
+          "type": "text"
+        },
+        {
+          "key": "daily-record-import-weekday",
+          "name": "<div style='display: inline-block; vertical-align: top'><b>Import Day of Week (0-6)</b><br>• The day of the week on which the export will occur. Sunday = 0, Monday = 1, ..., Saturday = 6.<br>• Requires that Import Hour is set. <br>• If omitted, exports will occur daily</div>",
+          "type": "text"
+        },
+        {
+          "key": "last-import-time",
+          "name": "Last Import Time - Do <b>NOT</b> modify this setting",
+          "type": "text",
+          "hidden": true
+        },
+        {
+          "key": "projects",
+          "name": "Projects",
+          "type": "sub_settings",
+          "repeatable": true,
+          "sub_settings": [
+            {
+              "key": "api-key",
+              "name": "API Key",
+              "type": "text"
+            },
+            {
+              "key": "record-id-prefix",
+              "name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'><b>Record ID Prefix</b> - If data is being imported from multiple projects or entered manually it is <b>highly recommended</b> to specify a record id prefix.  This prefix will be prepended to all imported records ids to ensure that they're unique.</div>",
+              "type": "text"
+            },
+            {
+              "key": "import-batch-size",
+              "name": "Import Batch Size (optional)",
+              "type": "text"
+            },
+            {
+              "key": "import-filter-logic-combination-operator",
+              "name": "<b>Filter Logic Combination Operator</b> - If <b>Filter Logic</b> is specified for all projects AND this project, this operator will be used to combine the logic",
+              "type": "dropdown",
+              "choices": [
+                {
+                  "name": "AND",
+                  "value": "AND"
+                },
+                {
+                  "name": "OR",
+                  "value": "OR"
+                }
+              ]
+            },
+            {
+              "key": "import-filter-logic",
+              "name": "<b>Filter Logic</b> - Used to limit which records are included in the sync.  This will include records in the same way that a report would that uses the same logic and displays only record IDs.  ALL events & instances are synced for matching records",
+              "type": "textarea"
+            },
+            {
+              "key": "import-field-list-type",
+              "name": "<b>Field List Type</b> - This and the list below override the top level Field List settings shared by all imports.  If left blank, the list below will be ignored",
+              "type": "dropdown",
+              "choices": [
+                {
+                  "name": "Include - Only the fields listed below will be imported",
+                  "value": "include"
+                },
+                {
+                  "name": "Exclude - All fields will be imported except those listed below",
+                  "value": "exclude"
+                }
+              ]
+            },
+            {
+              "key": "import-field-list",
+              "name": "Field List",
+              "type": "field-list",
+              "repeatable": true
+            },
+            {
+              "key": "import-files",
+              "name": "Check to import files <strong>only when the filename has changed</strong>. Files that you have saved <strong>will be replaced</strong> by any downloaded files. Importing files can significantly increase the amount of time required to sync a project.",
+              "type": "checkbox"
+            },
+            {
+              "key": "form-translations",
+              "name": "DO NOT MODIFY THIS SETTING. This setting can be safely marked as 'hidden' in config.json once this module is updated to framework version 13. JSON matrix containing form name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+              "type": "text"
+            },
+            {
+              "key": "event-translations",
+              "name": "DO NOT MODIFY THIS SETTING. This setting can be safely marked as 'hidden' in config.json once this module is updated to framework version 13. JSON matrix containing event name translations. To specify translations, visit the 'Configure Translations' module page in the project sidebar",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "links": {
+    "project": [
+      {
+        "name": "API Sync",
+        "icon": "databases_arrow",
+        "url": "api-sync.php",
+        "show-header-and-footer": true
+      },
+      {
+        "name": "API Sync - Configure Translations",
+        "icon": "databases_arrow",
+        "url": "config_translations.php",
+        "show-header-and-footer": false
+      },
+      {
+        "name": "API Sync - Latest Activity",
+        "icon": "list-alt",
+        "url": "log_digest.php",
+        "show-header-and-footer": true
+      }
+    ]
+  },
+  "crons": [
+    {
+      "cron_name": "exports",
+      "cron_description": "API Sync External Module - Exports",
+      "method": "cron",
+      "cron_frequency": "60",
+      "cron_max_run_time": "86400"
+    },
+    {
+      "cron_name": "imports",
+      "cron_description": "API Sync External Module - Imports",
+      "method": "cron",
+      "cron_frequency": "60",
+      "cron_max_run_time": "86400",
+      "comment": "Imports are in a separate cron so that long running imports do not prevent real-time exports from occurring."
+    }
+  ],
+  "auth-ajax-actions": [
+    "exportNowHTML"
+  ]
 }
