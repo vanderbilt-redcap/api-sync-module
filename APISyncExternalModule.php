@@ -1897,7 +1897,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
         $uploaded_filepath = $_FILES['attach-file-1']['tmp_name'];
         $translation_matrix = [];
         if ($uploaded_csv = fopen($uploaded_filepath, 'r')) {
-            while ($csv = fgetcsv($uploaded_csv)) {
+            while ($csv = fgetcsv($uploaded_csv, null, ',', '"', "\\")) {
                 if (!$csv_field_count) {
                     $csv_field_count = count($csv);
                 } else {
@@ -1933,7 +1933,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
         
         $translation_matrix = [];
         foreach (preg_split("/((\r?\n)|(\r\n?))/", $translations) as $line) {
-            $translation_matrix[] = str_getcsv(db_escape($line));
+            $translation_matrix[] = str_getcsv(db_escape($line), ",", '"', "\\");
             foreach ($translation_matrix as &$arr) {
                 foreach ($arr as $i => $name) {
                     $arr[$i] = strip_tags(label_decode(trim($name)));
@@ -2074,7 +2074,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
         echo '<link rel="stylesheet" href="' . $this->getUrl($path) . '">';
     }
 
-    public function redcap_module_ajax($action, $payload) {
+    public function redcap_module_ajax($action, $payload)
+    {
         $result = "";
         if ($action == "exportNowHTML") {
             return $this->renderExportNowHtml();
