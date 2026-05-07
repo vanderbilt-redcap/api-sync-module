@@ -137,6 +137,9 @@ class DigestLog
 		}
 
 		foreach ($this->unaccounted_urls as $url) {
+			if (is_null($url)) {
+				continue;
+			}
 			if (str_contains($row['message'], $url)) {
 				$this->url_statuses[$url]['timestamp'] = htmlentities($row['timestamp'], ENT_QUOTES);
 
