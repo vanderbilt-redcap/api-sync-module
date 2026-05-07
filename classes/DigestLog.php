@@ -137,7 +137,7 @@ class DigestLog
 		}
 
 		foreach ($this->unaccounted_urls as $url) {
-			if (is_null($url)) {
+			if (!is_string($url)) {
 				continue;
 			}
 			if (str_contains($row['message'], $url)) {
