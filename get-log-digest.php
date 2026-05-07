@@ -1,12 +1,14 @@
 <?php
+
 namespace Vanderbilt\APISyncExternalModule;
+
 $hasDetailsClause = "details != ''";
 const LOG_WINDOW_SIZE = 100;
 
 $start = $module->requireDateParameter('start', 'Y-m-d');
 $end = $module->requireDateParameter('end', 'Y-m-d');
 
-if(version_compare(REDCAP_VERSION, '10.8.2', '<')){
+if (version_compare(REDCAP_VERSION, '10.8.2', '<')) {
 	// This REDCap version does not support functions or comparisons in select log queries.
 	// Just always show the details button on older versions.
 	$hasDetailsClause = 1;
@@ -30,7 +32,7 @@ $results = $module->queryLogs("
 	AND timestamp >= ? and timestamp < DATE_ADD(?, INTERVAL 1 DAY)
 ", [$this_module_id, $module->getProjectId(), $start, $end]);
 
-while($row = $results->fetch_assoc()){
+while ($row = $results->fetch_assoc()) {
 	$start_log_id = $row['max'];
 	$min_log_id = $row['min'];
 	$end_log_id = $start_log_id - LOG_WINDOW_SIZE;
@@ -47,7 +49,7 @@ $message_subtrings = $digestLog::createLikeStatements();
 // NOTE: probably don't need EM id or project_id
 // NOTE: $message_subtrings can't be included as a ? parameter
 $all_accounted = false;
-do  {
+do {
 	$results = $module->queryLogs("
 	select log_id, timestamp, message, failure, $hasDetailsClause as hasDetails
 	where external_module_id = ? and project_id = ?
@@ -56,7 +58,7 @@ do  {
 	order by log_id desc
 ", [$this_module_id, $module->getProjectId(), $end_log_id, $start_log_id]);
 
-	while($row = $results->fetch_assoc()){
+	while ($row = $results->fetch_assoc()) {
 		$digestLog->parseLogRow($row);
 	}
 
@@ -64,7 +66,9 @@ do  {
 
 	$start_log_id = $end_log_id;
 	$end_log_id = max($end_log_id - LOG_WINDOW_SIZE, $min_log_id);
-	if ($start_log_id == $end_log_id) { $all_accounted = true; }
+	if ($start_log_id == $end_log_id) {
+		$all_accounted = true;
+	}
 } while (!$all_accounted);
 
 $min_url_statuses = $digestLog->getDigest();

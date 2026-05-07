@@ -1,15 +1,18 @@
-<?php namespace Vanderbilt\APISyncExternalModule;
+<?php
+
+namespace Vanderbilt\APISyncExternalModule;
+
 if (isset($_POST['project-api-key']) and isset($_POST['server-url'])) {
 	if (isset($_POST['table_saved'])) {
 		$table_saved_error_message = $module->importTranslationsTable();
-		
+
 		$response = new \stdClass();
 		$response->success = true;
 		if (!empty($table_saved_error_message)) {
 			$response->success = false;
 			$response->error = $table_saved_error_message;
 		}
-		
+
 		header('Content-type: application/json');
 		exit(json_encode($response));
 	} else {
@@ -33,7 +36,7 @@ function printTranslationsTable($translations, $type, $server_type) {
 		$col_name = "Source";
 		$col2_name = "Destination";
 	}
-	
+
 	?>
 	<div class='table-controls ml-3'>
 		<button type='button' class='btn btn-outline-primary btn-sm add-row-btn'>+ Row</button>
@@ -57,14 +60,14 @@ function printTranslationsTable($translations, $type, $server_type) {
 							echo "<th>$col2_name Name</th>";
 						}
 					}
-					?>
+	?>
 				</tr>
 			</thead>
 			<tbody>
-				<?php foreach($translations as $row) {
+				<?php foreach ($translations as $row) {
 					echo "<tr class='border-bottom'>";
 					for ($col_index = 1; $col_index <= $column_count; $col_index++) {
-						$name = trim($row[$col_index-1]);
+						$name = trim($row[$col_index - 1]);
 						$name = str_replace("\\", "", $name);
 						echo "<td><textarea>" . htmlentities($name, ENT_QUOTES) . "</textarea></td>";
 					}
@@ -91,7 +94,7 @@ function printProjectCard($project_info) {
 			$translations = json_decode($project_info["$settings_prefix$type-translations"] ?? '[]');
 			printTranslationsTable($translations, $type, $project_info['server-type']);
 		}
-		?>
+	?>
 	</div>
 	<br>
 	<?php
