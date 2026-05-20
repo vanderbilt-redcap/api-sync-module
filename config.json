@@ -89,6 +89,11 @@
       "repeatable": true
     },
     {
+      "key": "export-filter-logic-all",
+      "name": "<b>Filter Logic</b> - Used to limit which records are included in the sync.  This will include records in the same way that a report would that uses the same logic and displays only record IDs.  ALL events & instances are synced for matching records",
+      "type": "textarea"
+    },
+    {
       "key": "export-servers",
       "name": "Export Destinations",
       "type": "sub_settings",
@@ -119,6 +124,26 @@
               "key": "export-record-id-prefix",
               "name": "<div style='max-width: 350px; display: inline-block; vertical-align: top;'><b>Record ID Prefix</b> - Optional, but highly recommend if data is coming into the destination project from other sources.  This prefix will be prepended to all exported records ids to ensure that they're unique on the destination.</div>",
               "type": "text"
+            },
+            {
+              "key": "export-filter-logic-combination-operator",
+              "name": "<b>Filter Logic Combination Operator</b> - If <b>Filter Logic</b> is specified for exports on all projects AND this project, this operator will be used to combine the logic",
+              "type": "dropdown",
+              "choices": [
+                {
+                  "name": "AND",
+                  "value": "AND"
+                },
+                {
+                  "name": "OR",
+                  "value": "OR"
+                }
+              ]
+            },
+            {
+              "key": "export-filter-logic",
+              "name": "<b>Filter Logic</b> - Used to limit which records are included in the sync.  This will include records in the same way that a report would that uses the same logic and displays only record IDs.  ALL events & instances are synced for matching records",
+              "type": "textarea"
             },
             {
               "key": "export-field-list-type",
