@@ -289,25 +289,31 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			$allFieldsBatchBuilder = new BatchBuilder($this->getExportBatchSize());
 
 			$latestLogId = $this->getLatestLogId();
-			$allRecordsIds = array_column(REDCap::getData(
-				$this->getProjectId(),
-				'json-array',
-				null,
-				$recordIdFieldName,
-				null,
-				null,
-				false,
-				false,
-				false
-				/**
-				 * If ever try to add filter logic here again in the future,
-				 * remember a simple export filter logic feature is incompatible with incremental change detection.
-				 * During the periods when a record does not match filter logic, incremental changes for that record are ignored permanently
-				 * (regardless of whether the record matches the filter logic again in the future).
-				 * To work around this, we may need to store the last sync time of each individual record and use it to "catch up"
-				 * with past changes if/when unmatched records begin matching again (likely via a full sync of just those records).
-				 */
-			), $recordIdFieldName);
+			$filterLogic = implode(
+				' ' . $this->getCachedProjectSetting('export-filter-logic-combination-operator') . ' ',
+				array_filter([
+					$this->getCachedProjectSetting('export-filter-logic-all'),
+					$this->getCachedProjectSetting('export-filter-logic')
+				])
+			);
+			//TODO Prevent export from running instead of just dropping filter logic?????
+			if (!$this->validateFilterLogic($filterLogic)) {
+				$filterLogic = "";
+			}
+			/**
+			 * If ever try to add filter logic here again in the future,
+			 * remember a simple export filter logic feature is incompatible with incremental change detection.
+			 * During the periods when a record does not match filter logic, incremental changes for that record are ignored permanently
+			 * (regardless of whether the record matches the filter logic again in the future).
+			 * To work around this, we may need to store the last sync time of each individual record and use it to "catch up"
+			 * with past changes if/when unmatched records begin matching again (likely via a full sync of just those records).
+			 */
+			$allRecordsIds = array_column(REDCap::getData([
+					'project_id' => $this->getProjectId(),
+				'return_format' => 'json-array',
+				'fields' => [$recordIdFieldName],
+				'filterLogic' => $filterLogic
+			]), $recordIdFieldName);
 
 			$exportAllRecords = $this->getProjectSetting('export-all-records') === true;
 			if ($exportAllRecords) {
@@ -317,6 +323,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 					$allFieldsBatchBuilder->addEvent($latestLogId, $recordId, 'UPDATE', []);
 				}
 			} else {
+				// TODO Add a builder that, if filter logic isn't empty, adds all events since last event ID specific to the record
 				$this->addBatchesSinceLastExport($specificFieldsBatchBuilder, $allFieldsBatchBuilder, $allRecordsIds);
 			}
 
@@ -2007,5 +2014,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			return $this->renderExportNowHtml();
 		}
 		return $result;
+	}
+
+	public function redcap_module_save_configuration($project_id) {
+
+	}
+
+	public function validateFilterLogic(string $logic) {
+		return \LogicTester::isValid($logic);
 	}
 }
