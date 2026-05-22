@@ -36,7 +36,7 @@ while($row = $results->fetch_assoc()){
 	}
 
 	foreach($allowedHtml as $s){
-		$escapedRow['message'] = str_replace(htmlentities($s, ENT_QUOTES), html_entity_decode($s, ENT_QUOTES), $escapedRow['message']);
+		$escapedRow['message'] = str_replace(htmlentities($s, ENT_QUOTES), $s, $escapedRow['message']);
 	}
 
 	$rows[] = $escapedRow;
