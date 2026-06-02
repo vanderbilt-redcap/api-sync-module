@@ -1,4 +1,5 @@
 <?php
+
 namespace Vanderbilt\APISyncExternalModule;
 
 require_once __DIR__ . '/classes/Progress.php';
@@ -12,23 +13,24 @@ use stdClass;
 
 const CHECKBOX_DELIMITER = '___';
 
-class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
-	const IMPORT_PROGRESS_SETTING_KEY = 'import-progress';
+class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
+{
+	public const IMPORT_PROGRESS_SETTING_KEY = 'import-progress';
 
-	const UPDATE = 'update';
-	const DELETE = 'delete';
-	const TRANSLATION_TABLE_CELL = "<td><textarea></textarea></td>";
+	public const UPDATE = 'update';
+	public const DELETE = 'delete';
+	public const TRANSLATION_TABLE_CELL = "<td><textarea></textarea></td>";
 
-	const EXPORT_CANCELLED_MESSAGE = 'Export cancelled.';
+	public const EXPORT_CANCELLED_MESSAGE = 'Export cancelled.';
 
-	const DATA_VALUES_MAX_LENGTH = (2^16) - 1;
-	const MAX_LOG_QUERY_PERIOD = 7;
+	public const DATA_VALUES_MAX_LENGTH = (2 ^ 16) - 1;
+	public const MAX_LOG_QUERY_PERIOD = 7;
 
 	private $settingPrefix;
 	private $cachedSettings;
 	private $allFieldNames = [];
 
-	function cron($cronInfo){
+	public function cron($cronInfo) {
 		/**
 		 * We know 2g is required to prevent exports from crashing on the SAMMC project.
 		 * This was set to 4g somewhat arbitrarily.  Hopefully that will cover many potential future use cases.
@@ -39,19 +41,17 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		$cronName = $cronInfo['cron_name'];
 
-		foreach($this->framework->getProjectsWithModuleEnabled() as $localProjectId){
+		foreach ($this->framework->getProjectsWithModuleEnabled() as $localProjectId) {
 			// This automatically associates all log statements with this project.
 			$_GET['pid'] = $localProjectId;
 
 			$this->settingPrefix = substr($cronName, 0, -1); // remove the 's'
 
-			if($cronName === 'exports'){
+			if ($cronName === 'exports') {
 				$this->handleExports();
-			}
-			else if($cronName === 'imports'){
+			} elseif ($cronName === 'imports') {
 				$this->handleImports();
-			}
-			else{
+			} else {
 				throw new Exception("Unsupported cron name: $cronName");
 			}
 		}
@@ -62,19 +62,19 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return "The \"{$cronInfo['cron_description']}\" cron job completed successfully.";
 	}
 
-	private function areAnyEmpty($array){
+	private function areAnyEmpty($array) {
 		$filteredArray = array_filter($array);
 		return count($array) != count($filteredArray);
 	}
 
-	private function handleExports(){
+	private function handleExports() {
 		/**
 		 * This amount of time was chosen semi-arbitrarily.
 		 * A time limit less than the cron max run time of 24 hours is important.
 		 * Ideally the cron wouldn't only run for a few minutes max, but VUMC Project 111585 has batches that last a couple of hours.
 		 * We might as well set this high, at least until we can justify including sub-batches in the export progress.
 		 */
-		$twentyHours = 60*60*20;
+		$twentyHours = 60 * 60 * 20;
 		set_time_limit($twentyHours);
 
 		// In case the previous export was cancelled, or the button pushed when an export wasn't active.
@@ -84,32 +84,30 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		$firstServer = $servers[0] ?? null;
 		$firstProject = $firstServer['export-projects'][0] ?? null;
-		if($this->areAnyEmpty([
+		if ($this->areAnyEmpty([
 			$firstServer['export-redcap-url'] ?? null,
 			$firstProject['export-api-key'] ?? null,
 			$firstProject['export-project-name'] ?? null
-		])){
+		])) {
 			return;
 		}
 
-		try{
+		try {
 			$this->export($servers);
-		}
-		catch(\Exception $e){
-			if($e->getMessage() === self::EXPORT_CANCELLED_MESSAGE){
+		} catch (\Exception $e) {
+			if ($e->getMessage() === self::EXPORT_CANCELLED_MESSAGE) {
 				// No reason to report this exception since this is an expected use case.
-			}
-			else{
+			} else {
 				$this->handleException($e);
 			}
 		}
 	}
 
-	function getIdentifiers(){
+	public function getIdentifiers() {
 		$fields = REDCap::getDataDictionary($this->getProjectId(), 'array');
 		$fieldNames = [];
-		foreach($fields as $fieldName=>$details){
-			if($details['identifier'] === 'y'){
+		foreach ($fields as $fieldName => $details) {
+			if ($details['identifier'] === 'y') {
 				$fieldNames[] = $fieldName;
 			}
 		}
@@ -118,25 +116,25 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	// This method can be removed once it makes it into a REDCap version.
-	private function getLogTable(){
+	private function getLogTable() {
 		$result = $this->query('select log_event_table from redcap_projects where project_id = ?', $this->getProjectId());
 		$table = $result->fetch_assoc()['log_event_table'];
 
 		$prefix = 'redcap_log_event';
 		$number = explode($prefix, $table)[1];
 		$verifiedTable = $prefix;
-		if(!empty($number)){
+		if (!empty($number)) {
 			$verifiedTable .= (int)$number;
 		}
 
-		if($table !== $verifiedTable){
+		if ($table !== $verifiedTable) {
 			throw new \Exception('An error occurred while generating the verified log table name.');
 		}
 
 		return $verifiedTable;
 	}
 
-	private function getLogIndexHint($logTable){
+	private function getLogIndexHint($logTable) {
 		$result = $this->query("show variables like 'version'", []);
 		$versionParts = explode('.', $result->fetch_assoc()['Value']);
 
@@ -148,7 +146,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$row = $result->fetch_assoc();
 		$indexName = db_escape($row['Key_name']) ?? null;
 
-		if($indexName === null){
+		if ($indexName === null) {
 			return '';
 		}
 
@@ -159,7 +157,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return " use index ($indexName) ";
 	}
 
-	private function getLastExportedLogId(){
+	private function getLastExportedLogId() {
 		$logTable = $this->getLogTable();
 
 		$result = $this->query(
@@ -174,7 +172,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			",
 			[
 				$this->getProjectId(),
-				(new DateTime)->modify('-' . self::MAX_LOG_QUERY_PERIOD . ' days')->format('YmdHis')
+				(new DateTime())->modify('-' . self::MAX_LOG_QUERY_PERIOD . ' days')->format('YmdHis')
 			]
 		);
 
@@ -188,7 +186,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return max($weekOldId, $lastExportedId);
 	}
 
-	private function getLatestLogId(){
+	private function getLatestLogId() {
 		$result = $this->query("
 			select log_event_id
 			from " . $this->getLogTable() . "
@@ -200,9 +198,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $row['log_event_id'];
 	}
 
-	private function getAllFieldNames(){
+	private function getAllFieldNames() {
 		$pid = $this->getProjectId();
-		if(!isset($this->allFieldNames[$pid])){
+		if (!isset($this->allFieldNames[$pid])) {
 			$dictionary = REDCap::getDataDictionary($pid, 'array');
 			$this->allFieldNames[$pid] = array_keys($dictionary);
 		}
@@ -210,10 +208,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $this->allFieldNames[$pid];
 	}
 
-	private function addBatchesSinceLastExport($specificFieldsBatchBuilder, $allFieldsBatchBuilder, $recordIds){
+	private function addBatchesSinceLastExport($specificFieldsBatchBuilder, $allFieldsBatchBuilder, $recordIds) {
 		$recordIds = array_flip($recordIds);
 
-		$lastExportedLogId = $this->getLastExportedLogId();		
+		$lastExportedLogId = $this->getLastExportedLogId();
 		$result = $this->query("
 			select log_event_id, pk, event, data_values
 			from " . $this->getLogTable() . "
@@ -228,17 +226,16 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$lastExportedLogId
 		]);
 
-		while($row = $result->fetch_assoc()){
+		while ($row = $result->fetch_assoc()) {
 			$recordId = $row['pk'];
-			if(!isset($recordIds[$recordId])){
+			if (!isset($recordIds[$recordId])) {
 				continue;
 			}
 
 			$fields = $this->getChangedFieldNamesForLogRow($row['data_values'], $this->getAllFieldNames());
-			if(empty($fields)){
+			if (empty($fields)) {
 				$batchBuilder = $allFieldsBatchBuilder;
-			}
-			else{
+			} else {
 				$batchBuilder = $specificFieldsBatchBuilder;
 			}
 
@@ -246,8 +243,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
-	function getChangedFieldNamesForLogRow($dataValues, $allFieldNames){
-		if(strlen($dataValues) === self::DATA_VALUES_MAX_LENGTH){
+	public function getChangedFieldNamesForLogRow($dataValues, $allFieldNames) {
+		if (strlen($dataValues) === self::DATA_VALUES_MAX_LENGTH) {
 			// The data_values column was maxed out, so all changes were not included.
 			// Return an empty array, which will cause all fields to be synced.
 			return [];
@@ -262,7 +259,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return array_intersect($allFieldNames, $matches[1]);
 	}
 
-	private function export($servers){
+	private function export($servers) {
 		/**
 		 * WHEN MODIFYING EXPORT BEHAVIOR
 		 * If further export permissions tweaks are made, Paul recommended selecting
@@ -275,8 +272,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$recordIdFieldName = $this->getRecordIdField();
 
 		$exportProgress = $this->getProjectSetting('export-progress');
-		if($exportProgress === null){
-			if(!$this->isTimeToRunExports()){
+		if ($exportProgress === null) {
+			if (!$this->isTimeToRunExports()) {
 				return;
 			}
 
@@ -292,7 +289,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$allFieldsBatchBuilder = new BatchBuilder($this->getExportBatchSize());
 
 			$latestLogId = $this->getLatestLogId();
-			$allRecordsIds = array_column(REDCap::getData($this->getProjectId(),
+			$allRecordsIds = array_column(REDCap::getData(
+				$this->getProjectId(),
 				'json-array',
 				null,
 				$recordIdFieldName,
@@ -312,19 +310,18 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			), $recordIdFieldName);
 
 			$exportAllRecords = $this->getProjectSetting('export-all-records') === true;
-			if($exportAllRecords){
+			if ($exportAllRecords) {
 				$this->removeProjectSetting('export-all-records');
-				foreach($allRecordsIds as $recordId){
+				foreach ($allRecordsIds as $recordId) {
 					// An empty fields array will cause all fields to be pulled.
 					$allFieldsBatchBuilder->addEvent($latestLogId, $recordId, 'UPDATE', []);
 				}
-			}
-			else{
+			} else {
 				$this->addBatchesSinceLastExport($specificFieldsBatchBuilder, $allFieldsBatchBuilder, $allRecordsIds);
 			}
 
 			$batches = $this->mergeBatches($specificFieldsBatchBuilder, $allFieldsBatchBuilder);
-			if(empty($batches)){
+			if (empty($batches)) {
 				/**
 				 * No recent changes exist to sync.
 				 * Update the last exported log ID to whatever the latest ID across all projects is
@@ -335,8 +332,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$this->setProjectSetting('last-exported-log-id', $latestLogId);
 				return;
 			}
-		}
-		else{
+		} else {
 			// Continue an export in progress
 			$this->removeProjectSetting('export-progress');
 
@@ -347,16 +343,16 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$maxSubBatchSize = $this->getExportSubBatchSize();
 
 		$excludedFieldNames = [];
-		if($this->getProjectSetting('export-exclude-identifiers') === true){
+		if ($this->getProjectSetting('export-exclude-identifiers') === true) {
 			$excludedFieldNames = $this->getIdentifiers();
 		}
 
-		for($i=0; $i<count($batches); $i++) {
-			if($this->isCronRunningTooLong()){
+		for ($i = 0; $i < count($batches); $i++) {
+			if ($this->isCronRunningTooLong()) {
 				$remainingBatches = array_splice($batches, $i);
 
 				$this->setProjectSetting('export-progress', serialize([
-					$startingBatchIndex+$i,
+					$startingBatchIndex + $i,
 					$remainingBatches
 				]));
 
@@ -370,7 +366,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$recordIds = $batch->getRecordIds();
 			$fieldsByRecord = $batch->getFieldsByRecord();
 
-			$batchText = "batch " . ($startingBatchIndex+$i+1) . " of " . ($startingBatchIndex+count($batches));
+			$batchText = "batch " . ($startingBatchIndex + $i + 1) . " of " . ($startingBatchIndex + count($batches));
 
 			$this->log("Preparing to export {$type}s for $batchText", [
 				'details' => json_encode([
@@ -379,10 +375,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				], JSON_PRETTY_PRINT)
 			]);
 
-			if($type === self::UPDATE){
+			if ($type === self::UPDATE) {
 				$fields = $batch->getFields();
 
-				if(!empty($fields)){
+				if (!empty($fields)) {
 					$fields[] = $recordIdFieldName;
 				}
 
@@ -406,28 +402,28 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$subBatchData = [];
 				$subBatchSize = 0;
 				$subBatchNumber = 1;
-				for($rowIndex=0; $rowIndex<count($data); $rowIndex++){
+				for ($rowIndex = 0; $rowIndex < count($data); $rowIndex++) {
 					$row = $data[$rowIndex];
-					foreach($batch->getFields() as $field){
-						if(
+					foreach ($batch->getFields() as $field) {
+						if (
 							$field !== $recordIdFieldName
 							&&
 							!isset($fieldsByRecord[$row[$recordIdFieldName]][$field])
-						){
+						) {
 							// This field didn't change for this record, so don't include it in the export.
 							unset($row[$field]);
 						}
 					}
 
-					foreach($excludedFieldNames as $excludedFieldName){
+					foreach ($excludedFieldNames as $excludedFieldName) {
 						unset($row[$excludedFieldName]);
 					}
 
 					$rowSize = strlen(json_encode($row));
 
 					$spaceLeftInSubBatch = $maxSubBatchSize - $subBatchSize;
-					if($rowSize > $spaceLeftInSubBatch){
-						if($subBatchSize === 0){
+					if ($rowSize > $spaceLeftInSubBatch) {
+						if ($subBatchSize === 0) {
 							$this->log("The export failed because the sub-batch size setting is not large enough to handle the data in the details of this log message.", [
 								'details' => json_encode($row, JSON_PRETTY_PRINT)
 							]);
@@ -444,16 +440,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 					$subBatchData[] = $row;
 					$subBatchSize += $rowSize;
 
-					$isLastRow = $rowIndex === count($data)-1;
-					if($isLastRow){
+					$isLastRow = $rowIndex === count($data) - 1;
+					if ($isLastRow) {
 						$this->exportSubBatch($servers, $type, $subBatchData, $subBatchNumber, $subBatchSize);
 					}
 				}
-			}
-			else if($type === self::DELETE){
+			} elseif ($type === self::DELETE) {
 				$this->exportSubBatch($servers, $type, $recordIds, 1, 0);
-			}
-			else{
+			} else {
 				throw new Exception("Unsupported export type: $type");
 			}
 
@@ -462,27 +456,27 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
-	function mergeBatches($builder1, $builder2){
+	public function mergeBatches($builder1, $builder2) {
 		$batches = array_merge($builder1->getBatches(), $builder2->getBatches());
-		usort($batches, function($a, $b){
+		usort($batches, function ($a, $b) {
 			return $a->getLastLogId() - $b->getLastLogId();
 		});
 
 		return $batches;
 	}
 
-	private function isCronRunningTooLong(){
+	private function isCronRunningTooLong() {
 		return time() >= $_SERVER['REQUEST_TIME_FLOAT'] + 55;
 	}
 
-	function logDetails($message, $details){
+	public function logDetails($message, $details) {
 		$parts = str_split($details, 65535);
 		$params = [
 			'details' => array_shift($parts)
 		];
 
 		$n = 2;
-		foreach($parts as $part){
+		foreach ($parts as $part) {
 			$params["details$n"] = $part;
 			$n++;
 		}
@@ -490,14 +484,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $this->log($message, $params);
 	}
 
-	function getProjects($server){
+	public function getProjects($server) {
 		$fieldListSettingName = $this->getPrefixedSettingName("field-list");
 		$projects = $server[$this->getPrefixedSettingName("projects")];
 
 		$incorrectlyLocatedFieldLists = $projects[$fieldListSettingName] ?? null;
-		if($incorrectlyLocatedFieldLists !== null){
+		if ($incorrectlyLocatedFieldLists !== null) {
 			// Recover from a getSubSettings() bug which was fixed in framework version 9.
-			foreach ($projects as $i=>&$project) {
+			foreach ($projects as $i => &$project) {
 				$project[$fieldListSettingName] = $incorrectlyLocatedFieldLists[$i] ?? null;
 			}
 
@@ -507,8 +501,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $projects;
 	}
 
-	private function exportSubBatch($servers, $type, $data, $subBatchNumber, $subBatchSize){
-		$subBatchSize = round($subBatchSize/1024/1024, 1) . ' MB';
+	private function exportSubBatch($servers, $type, $data, $subBatchNumber, $subBatchSize) {
+		$subBatchSize = round($subBatchSize / 1024 / 1024, 1) . ' MB';
 		$recordIdFieldName = $this->getRecordIdField();
 
 		foreach ($servers as $server) {
@@ -516,7 +510,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$logUrl = $this->formatURLForLogs($url);
 
 			foreach ($this->getProjects($server) as $project) {
-				$getProjectExportMessage = function($action) use ($type, $subBatchNumber, $logUrl, $project, $subBatchSize){
+				$getProjectExportMessage = function ($action) use ($type, $subBatchNumber, $logUrl, $project, $subBatchSize) {
 					return "
 						<div>$action exporting $type sub-batch $subBatchNumber ($subBatchSize) to the following project at $logUrl:</div>
 						<div class='remote-project-title'>" . $project['export-project-name'] . "</div>
@@ -530,12 +524,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				$args = ['content' => 'record'];
 
 				$prepped_data = [];
-				if($type === self::UPDATE){
+				if ($type === self::UPDATE) {
 					$prepped_data = $this->prepareData($project, $data, $recordIdFieldName);
 					$args['overwriteBehavior'] = 'overwrite';
 					$args['data'] = json_encode($prepped_data, JSON_PRETTY_PRINT);
-				}
-				else if($type === self::DELETE){
+				} elseif ($type === self::DELETE) {
 					$recordIdPrefix = $project['export-record-id-prefix'];
 					if ($recordIdPrefix) {
 						foreach ($data as &$rId) {
@@ -548,7 +541,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				}
 
 				$results = $this->apiRequest($url, $apiKey, $args);
-				if (($type === self::UPDATE) && ($project['export-files'] ?? FALSE)) {
+				if (($type === self::UPDATE) && ($project['export-files'] ?? false)) {
 					# import is from the perspective of the remote server
 					$recordIds = [];
 					foreach ($data as $row) {
@@ -564,7 +557,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 					['details' => json_encode($results, JSON_PRETTY_PRINT)]
 				);
 
-				if($this->isExportCancelled()){
+				if ($this->isExportCancelled()) {
 					$this->log(self::EXPORT_CANCELLED_MESSAGE);
 					throw new \Exception(self::EXPORT_CANCELLED_MESSAGE);
 				}
@@ -572,17 +565,17 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
-	function isExportCancelled(){
+	public function isExportCancelled() {
 		return $this->getProjectSetting('export-cancelled') === true;
 	}
 
-	function setExportCancelled($value){
+	public function setExportCancelled($value) {
 		return $this->setProjectSetting('export-cancelled', $value);
 	}
 
-	private function getExportBatchSize(){
+	private function getExportBatchSize() {
 		$size = (int) $this->getProjectSetting('export-batch-size');
-		if(!$size){
+		if (!$size) {
 			// A size of 100 caused our 4g memory limit to be reached on VUMC project 111585.
 			$size = 50;
 		}
@@ -590,9 +583,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $size;
 	}
 
-	private function getExportSubBatchSize(){
+	private function getExportSubBatchSize() {
 		$size = $this->getProjectSetting('export-sub-batch-size');
-		if($size === null){
+		if ($size === null) {
 			/**
 			 * A 7MB limit was added semi-arbitrarily.  We know requests greater than 16MB were truncated
 			 * and returning an empty error message when OSHU was attempting to push to Vanderbilt.
@@ -602,18 +595,18 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 
 		// Return the size in bytes
-		return $size*1024*1024;
+		return $size * 1024 * 1024;
 	}
 
-	function clearExportQueue(){
+	public function clearExportQueue() {
 		$this->setProjectSetting('last-exported-log-id', $this->getLatestLogId());
 	}
 
-	private function getImportServers(){
+	private function getImportServers() {
 		$servers = $this->framework->getSubSettings('servers');
 		$importTimes = $this->getProjectSetting('last-import-time');
 
-		for($i=0; $i<count($servers); $i++){
+		for ($i = 0; $i < count($servers); $i++) {
 			/**
 			 * Hidden settings are excluded from getSubSettings(),
 			 * so manually add this one back in.
@@ -624,33 +617,32 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $servers;
 	}
 
-	private function handleImports(){
+	private function handleImports() {
 		$progress = new Progress($this);
 
 		$servers = $this->getImportServers();
 		$syncNow = $this->getProjectSetting('sync-now');
 		$this->removeProjectSetting('sync-now');
 
-		foreach($servers as $server){
-			if(
+		foreach ($servers as $server) {
+			if (
 				$syncNow
 				||
 				$this->isTimeToRun(
 					$server['daily-record-import-minute'],
-                    $server['daily-record-import-hour'],
-                    $server['daily-record-import-weekday'],
+					$server['daily-record-import-hour'],
+					$server['daily-record-import-weekday'],
 					$server
 				)
-			){
+			) {
 				// addServer() will have no effect if the server is already in progress.
 				$progress->addServer($server);
 			}
 		}
 
-		try{
+		try {
 			$this->importNextBatch($progress);
-		}
-		catch(Exception $e){
+		} catch (Exception $e) {
 			$this->handleException($e);
 			$progress->finishCurrentProject();
 		}
@@ -658,41 +650,40 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$this->setImportProgress($progress->serialize());
 	}
 
-	function getImportProgress(){
+	public function getImportProgress() {
 		return $this->getProjectSetting(self::IMPORT_PROGRESS_SETTING_KEY);
 	}
 
-	function setImportProgress($progress){
+	public function setImportProgress($progress) {
 		$this->setProjectSetting(self::IMPORT_PROGRESS_SETTING_KEY, $progress);
 	}
 
-	function formatURLForLogs($url){
+	public function formatURLForLogs($url) {
 		$parts = explode('://', $url);
 
-		if(count($parts) === 1){
+		if (count($parts) === 1) {
 			$domainName = $parts[0];
-		}
-		else{
+		} else {
 			$domainName = $parts[1];
 		}
 
 		return "<b><a href='$url' target='_blank'>$domainName</a></b>";
 	}
 
-	private function handleException($e){
+	private function handleException($e) {
 		$this->log("An error occurred.  Click 'Show Details' for more info.", [
 			'details' => $e->getMessage() . "\n\n" . $e->getTraceAsString()
 		]);
 
 		$message = "The API Sync module has encountered an error on project " . $this->getProjectId() . ".  The sync will be automatically re-tried, but action is likely required before it will succeed.";
 
-		if($this->settingPrefix === 'export'){
+		if ($this->settingPrefix === 'export') {
 			/**
 			 * In a worst case scenario, the first failed sync would not occur until approximately a day after the first unsynced change,
 			 * and the next successful sync may not occur until a day after the problem is fixed.  Because of this, we advertise a window
 			 * two days shorter than MAX_LOG_QUERY_PERIOD for fixing the issue.
 			 */
-			$fixDayRange = self::MAX_LOG_QUERY_PERIOD-2 . '-' . self::MAX_LOG_QUERY_PERIOD;
+			$fixDayRange = self::MAX_LOG_QUERY_PERIOD - 2 . '-' . self::MAX_LOG_QUERY_PERIOD;
 
 			$message .= "  If this message persists longer than an approximate $fixDayRange day cutoff, older changes will be skipped to conserve server resources.  This cutoff is not possible to predict precisely since it is dependent on actual cron run times for this and other modules.  If the cutoff is reached, a full sync (or manual export/import) will be required to ensure all older changes were synced.  If this message persists longer than " . self::MAX_LOG_QUERY_PERIOD . " days, please disable this sync to prevent unnecessary server resource consumption.";
 		}
@@ -700,24 +691,24 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$this->sendErrorEmail($message);
 	}
 
-	private function sendErrorEmail($message){
+	private function sendErrorEmail($message) {
 		$url = $this->getUrl('api-sync.php');
 		$message .= "  See the logs on <a href='$url'>this page</a> for details.";
 
 		$usernames = $this->getProjectSetting('error-recipients');
 		$emails = [];
-		if(!empty($usernames)){
-			foreach($usernames as $username){
-				if(!empty($username)){
+		if (!empty($usernames)) {
+			foreach ($usernames as $username) {
+				if (!empty($username)) {
 					$emails[] = $this->getUser($username)->getEmail();
 				}
 			}
 		}
 
-		if(empty($emails)){
+		if (empty($emails)) {
 			$users = $this->getProject()->getUsers();
-			foreach($users as $user){
-				if($user->hasDesignRights()){
+			foreach ($users as $user) {
+				if ($user->hasDesignRights()) {
 					$emails[] = $user->getEmail();
 				}
 			}
@@ -733,42 +724,40 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		);
 	}
 
-	private function isTimeToRunExports(){
+	private function isTimeToRunExports() {
 		$exportNow = $this->getProjectSetting('export-now');
-		if($exportNow){
+		if ($exportNow) {
 			$this->removeProjectSetting('export-now');
 			return true;
 		}
 
 		$minute = $this->getProjectSetting('export-minute');
-        $hour = $this->getProjectSetting('export-hour');
-        $weekday = $this->getProjectSetting('export-weekday');
+		$hour = $this->getProjectSetting('export-hour');
+		$weekday = $this->getProjectSetting('export-weekday');
 
 		return $this->isTimeToRun($minute, $hour, $weekday, null);
 	}
 
-	private function isTimeToRun($minute, $hour, $weekday, $server){
-		if(!is_numeric($minute)){
+	private function isTimeToRun($minute, $hour, $weekday, $server) {
+		if (!is_numeric($minute)) {
 			// Don't sync if this field is not set
 			return false;
-		}
-		else if(!is_numeric($hour)){
+		} elseif (!is_numeric($hour)) {
 			// We're syncing hourly, so use the current hour.
 			$hour = 'H';
 		}
-        if (is_numeric($weekday) && (date("w") != $weekday)) {
-            // Don't sync if weekday is set but doesn't match day of week
-            return false;
-        }
-
-		if($server === null){
-			$lastRunTime = $this->getProjectSetting('last-export-time');
+		if (is_numeric($weekday) && (date("w") != $weekday)) {
+			// Don't sync if weekday is set but doesn't match day of week
+			return false;
 		}
-		else{
+
+		if ($server === null) {
+			$lastRunTime = $this->getProjectSetting('last-export-time');
+		} else {
 			$lastRunTime = $server['last-import-time'] ?? null;
 		}
 
-		if(empty($lastRunTime)){
+		if (empty($lastRunTime)) {
 			/**
 			 * This is the first time this sync has run.
 			 * Don't actually sync, but set a last run time to the current time as if we did.
@@ -779,7 +768,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 
 		$scheduledTime = strtotime(date("Y-m-d $hour:$minute:00"));
-		if(
+		if (
 			$scheduledTime > time() // Not time to sync yet
 			||
 			/**
@@ -787,7 +776,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			 * and we're waiting for the first scheduled time after the last run time was set initially above.
 			 */
 			$lastRunTime >= $scheduledTime
-		){
+		) {
 			return false;
 		}
 
@@ -797,7 +786,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return true;
 	}
 
-	private function setLastRunTime($scheduledTime, $server){
+	private function setLastRunTime($scheduledTime, $server) {
 		/**
 		 * The string cast is required to prevent the setting config dialog from omitting the value,
 		 * and removing it from the database if settings are saved.
@@ -805,13 +794,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		 */
 		$scheduledTime = (string) $scheduledTime;
 
-		if($server === null){
+		if ($server === null) {
 			$this->setProjectSetting('last-export-time', $scheduledTime);
-		}
-		else{
+		} else {
 			$servers = $this->getImportServers();
-			for($i=0; $i<count($servers); $i++){
-				if($servers[$i]['redcap-url'] === $server['redcap-url']){
+			for ($i = 0; $i < count($servers); $i++) {
+				if ($servers[$i]['redcap-url'] === $server['redcap-url']) {
 					$importTimes = $this->getProjectSetting('last-import-time');
 					$importTimes[$i] = $scheduledTime;
 					$this->setProjectSetting('last-import-time', $importTimes);
@@ -820,9 +808,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
-	function importNextBatch(Progress &$progress){
-		$project =& $progress->getCurrentProject();
-		if($project === null){
+	public function importNextBatch(Progress &$progress) {
+		$project = & $progress->getCurrentProject();
+		if ($project === null) {
 			// No projects are in progress.
 			return;
 		}
@@ -830,7 +818,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$url = $progress->getCurrentServerUrl();
 		$apiKey = $project['api-key'];
 
-		if($progress->getBatchIndex() === 0){
+		if ($progress->getBatchIndex() === 0) {
 			$this->log("
 				<div>Exporting records from the remote project titled:</div>
 				<div class='remote-project-title'>" . $this->getProjectTitle($url, $apiKey) . "</div>
@@ -855,12 +843,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			]);
 
 			$recordIds = [];
-			foreach($records as $record){
+			foreach ($records as $record) {
 				$recordIds[] = $record[$recordIdFieldName];
 			}
 
 			$batchSize = @$project['import-batch-size'];
-			if(empty($batchSize)){
+			if (empty($batchSize)) {
 				// This calculation should NOT be changed without testing older PHP versions.
 				// PHP 7 is much more memory efficient on REDCap imports than PHP 5.
 				// Use the number of fields times number of records as a metric to determine a reasonable chunk size.
@@ -873,8 +861,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$project['record-ids'] = $recordIds;
 			$project['record-id-field-name'] = $recordIdFieldName;
 			$project['import-batch-size'] = $batchSize;
-		}
-		else{
+		} else {
 			$recordIds = $project['record-ids'];
 			$recordIdFieldName = $project['record-id-field-name'];
 			$batchSize = $project['import-batch-size'];
@@ -883,7 +870,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$batches = array_chunk($recordIds, $batchSize);
 		$batchIndex = $progress->getBatchIndex();
 		$batch = $batches[$batchIndex];
-		$batchText = "batch " . ($batchIndex+1) . " of " . count($batches);
+		$batchText = "batch " . ($batchIndex + 1) . " of " . count($batches);
 
 		$this->log("Exporting $batchText");
 		$response = $this->apiRequest($url, $apiKey, [
@@ -893,18 +880,18 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		]);
 
 		$response = $this->prepareData($project, $response, $recordIdFieldName);
-		
+
 		$stopEarly = $this->importBatch($project, $batchText, $batchSize, $response, $progress);
-		if (!$stopEarly && ($project['import-files'] ?? FALSE)) {
+		if (!$stopEarly && ($project['import-files'] ?? false)) {
 			# For clarity, export from the remote to import locally
 			$isSuccessful = $this->transferFiles($url, $apiKey, "export", $batch, $project, $response);
 			if (!$isSuccessful) {
-				$stopEarly = TRUE;
+				$stopEarly = true;
 			}
 		}
 
 		$progress->incrementBatch();
-		if($progress->getBatchIndex() === count($batches) || $stopEarly){
+		if ($progress->getBatchIndex() === count($batches) || $stopEarly) {
 			$progress->finishCurrentProject();
 		}
 	}
@@ -915,7 +902,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		} while (file_exists($tempFilename));
 		return $tempFilename;
 	}
-	
+
 	private static function getMyCURLFile(array $data, string $recordId, string $recordIdFieldName, $event, string $repeatInstrument, $instance, string $fileFieldName) {
 		$id = self::getMyFileID($data, $recordId, $recordIdFieldName, $event, $repeatInstrument, $instance, $fileFieldName);
 		if ($id) {
@@ -931,7 +918,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				return $fileOb;
 			}
 		}
-		return FALSE;
+		return false;
 	}
 
 	# accesses the filename in the data. If it's an EDOC ID (i.e., numeric), it transforms it into a filename
@@ -981,13 +968,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		if (!in_array($actionOnRemote, ["import", "export"])) {
 			throw new \Exception("Invalid action!");
 		}
-		if(empty($project[$this->getPrefixedSettingName('field-list-type')])){
+		if (empty($project[$this->getPrefixedSettingName('field-list-type')])) {
 			$fieldList = $this->getCachedProjectSetting($this->getPrefixedSettingName('field-list-all'));
 		} else {
 			$fieldList = $project[$this->getPrefixedSettingName('field-list')];
 		}
-		$emptyFieldList = empty($fieldList) || ($fieldList === [NULL]);
-		
+		$emptyFieldList = empty($fieldList) || ($fieldList === [null]);
+
 		$metadata = $this->getMetadata($this->getProjectId());
 		$fileFields = [];
 		foreach ($metadata as $fieldName => $field) {
@@ -996,9 +983,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			}
 		}
 		if (empty($fileFields)) {
-			return TRUE;
+			return true;
 		}
-  
+
 		$pid = (int)$this->getProjectId();
 		$recordIdFieldName = $this->getRecordIdField();
 		if ($actionOnRemote == "export") {
@@ -1015,7 +1002,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		foreach ($sourceData as $sourceDataRow) {
 			foreach ($fileFields as $fileFieldName) {
 				$recordId = $sourceDataRow[$recordIdFieldName];
-				$event = $sourceDataRow['redcap_event_name'] ?? NULL;
+				$event = $sourceDataRow['redcap_event_name'] ?? null;
 				$instance = $sourceDataRow['redcap_repeat_instance'] ?: 1;
 				$repeatInstrument = $sourceDataRow['redcap_repeat_instrument'] ?? "";
 				if ($actionOnRemote == "export") {
@@ -1049,14 +1036,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 								"redcap_repeat_instance" => $instance,
 								$fileFieldName => ""
 							];
-						} else if ($event) {
+						} elseif ($event) {
 							$uploadRow = [
 								$recordIdFieldName => $recordId,
 								"redcap_event_name" => $event,
 								"redcap_repeat_instance" => $sourceDataRow['redcap_repeat_instance'],  // blank if not repeating
 								$fileFieldName => ""
 							];
-						} else if ($repeatInstrument) {
+						} elseif ($repeatInstrument) {
 							$uploadRow = [
 								$recordIdFieldName => $recordId,
 								"redcap_repeat_instrument" => $repeatInstrument,
@@ -1074,7 +1061,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 							"dataFormat" => "json-array",
 							"data" => [$uploadRow],
 							"overwriteBehavior" => "overwrite",
-							"skipFileUploadFields" => FALSE      // must be set - REDCap's default is TRUE
+							"skipFileUploadFields" => false      // must be set - REDCap's default is TRUE
 						];
 						error_log("Uploading ".json_encode($params));
 						$feedback = \REDCap::saveData($params);
@@ -1085,7 +1072,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 							$this->log(self::makeSuccessfulLocalFileDeleteMessage($recordId, $fileFieldName));
 							continue;
 						}
-					} else if (($sourceFilename === "") && ($actionOnRemote == "import")) {
+					} elseif (($sourceFilename === "") && ($actionOnRemote == "import")) {
 						# delete remote file
 						$requestedAction = "delete";
 					} else {
@@ -1121,18 +1108,18 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 					if ($requestedAction == "import") {
 						if (!$response["success"]) {
-							return FALSE;
+							return false;
 						} else {
 							$this->log(self::makeSuccessfulFileTransferMessage($requestedAction, $url, $recordId, $fileFieldName));
 						}
-					} else if ($requestedAction == "delete") {
+					} elseif ($requestedAction == "delete") {
 						if (!$response["success"]) {
 							$errorMessage = isset($response['error']) ? " ".$response['error'] : "";
 							throw new \Exception("Could not delete $fileFieldName on Record $recordId on remote server $url".$errorMessage);
 						} else {
 							$this->log(self::makeSuccessfulRemoteFileDeleteMessage($url, $recordId, $fileFieldName));
 						}
-					} else if ($response) {
+					} elseif ($response) {
 						# $requestedAction == export
 						$newFilename = $response["filename"];
 						if ($newFilename === "") {
@@ -1147,7 +1134,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 						$newId = \REDCap::storeFile($tempFilename, $pid, $newFilename);
 						unlink($tempFilename);
 						if ($newId > 0) {
-							$eventNum = NULL;
+							$eventNum = null;
 							if ($event) {
 								$Proj = new \Project($pid);    // REDCap has to be in a project context
 								$eventNum = $Proj->getEventIdUsingUniqueEventName($event);
@@ -1170,27 +1157,27 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				}
 			}
 		}
-		return TRUE;
+		return true;
 	}
 
-	private function prepareData(&$project, $data, $recordIdFieldName){
+	private function prepareData(&$project, $data, $recordIdFieldName) {
 		// perform translations if configured
 		$this->buildTranslations($project);
 		if ($this->translationsAreBuilt($project)) {
 			$this->translateFormNames($data, $project);
 			$this->translateEventNames($data, $project);
 		}
-		
+
 		$proj_key_prefix = $this->getProjectTypePrefix($project);
 		$prefix = $project[$proj_key_prefix . 'record-id-prefix'];
 		$metadata = $this->getMetadata($this->getProjectId());
 		$formNamesByField = [];
-		foreach($metadata as $fieldName=>$field){
+		foreach ($metadata as $fieldName => $field) {
 			$formNamesByField[$fieldName] = $field['form_name'];
 		}
 
 		$newData = [];
-		foreach($data as &$instance){
+		foreach ($data as &$instance) {
 			if ($prefix) {
 				$instance[$recordIdFieldName] = $prefix . $instance[$recordIdFieldName];
 			}
@@ -1198,47 +1185,46 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$this->removeInvalidIncompleteStatuses($instance, $formNamesByField);
 			$this->filterByFieldList($project, $instance);
 
-			if(!empty($instance)){
+			if (!empty($instance)) {
 				$newData[] = $instance;
 			}
 		}
-		
+
 		return $newData;
 	}
 
-	private function getPrefixedSettingName($name){
+	private function getPrefixedSettingName($name) {
 		$prefix = $this->settingPrefix;
 
-		if(
+		if (
 			// At some point it might make sense to refactor other references to use this function
 			// and add more items to this array.
 			in_array($name, ['projects'])
 			&&
 			$prefix === 'import'
-		){
+		) {
 			// This setting predated the prefixing.  Do not prepend the prefix.
-		}
-		else{
+		} else {
 			$name = "$prefix-$name";
 		}
 
 		return $name;
 	}
 
-	function filterByFieldList($project, &$instance){
+	public function filterByFieldList($project, &$instance) {
 		$type = $project[$this->getPrefixedSettingName('field-list-type')];
 		$fieldList = $project[$this->getPrefixedSettingName('field-list')];
 
-		if(empty($type)){
+		if (empty($type)) {
 			$type = $this->getCachedProjectSetting($this->getPrefixedSettingName('field-list-type-all'));
 			$fieldList = $this->getCachedProjectSetting($this->getPrefixedSettingName('field-list-all'));
 		}
 
-		if($fieldList === null){
+		if ($fieldList === null) {
 			$fieldList = [];
 		}
 
-		if($type === 'include'){
+		if ($type === 'include') {
 			$fieldList = array_merge($fieldList, $this->getREDCapIdentifierFields());
 		}
 
@@ -1249,22 +1235,22 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		$fieldList = array_flip($fieldList);
 
-		foreach(array_keys($instance) as $field){
+		foreach (array_keys($instance) as $field) {
 			$fieldWithoutCheckboxSuffix = explode(CHECKBOX_DELIMITER, $field)[0];
 			$isset = isset($fieldList[$fieldWithoutCheckboxSuffix]);
 
-			if(
+			if (
 				($type === 'include' && !$isset)
 				||
 				($type === 'exclude' && $isset)
-			){
+			) {
 				unset($instance[$field]);
 			}
 		}
 	}
 
-	private function getREDCapIdentifierFields(){
-		if(!isset($this->redcapIdentifierFields)){
+	private function getREDCapIdentifierFields() {
+		if (!isset($this->redcapIdentifierFields)) {
 			$this->redcapIdentifierFields = [
 				$this->getRecordIdField(),
 				'redcap_event_name',
@@ -1276,26 +1262,26 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $this->redcapIdentifierFields;
 	}
 
-	private function removeInvalidIncompleteStatuses(&$instance, $formNamesByField){
+	private function removeInvalidIncompleteStatuses(&$instance, $formNamesByField) {
 		$formValueCounts = [];
-		foreach($formNamesByField as $fieldName=>$formName){
-			if(!isset($formValueCounts[$formName])){
+		foreach ($formNamesByField as $fieldName => $formName) {
+			if (!isset($formValueCounts[$formName])) {
 				$formValueCounts[$formName] = 0;
 			}
 
 			$value = $instance[$fieldName] ?? null;
-			if(
+			if (
 				$value !== ''
 				// The following likely means the field only exists in the local project...we'll allow that without an error for now...
-				&& $value !== null 
-			){
+				&& $value !== null
+			) {
 				$formValueCounts[$formName]++;
 			}
 		}
 
-		foreach($formValueCounts as $formName=>$count){
+		foreach ($formValueCounts as $formName => $count) {
 			$completeFieldName = "{$formName}_complete";
-			if($count === 0 && ($instance[$completeFieldName] ?? null) === '0'){
+			if ($count === 0 && ($instance[$completeFieldName] ?? null) === '0') {
 				// Remove complete statuses for forms without data.
 				// We do this because REDCap incorrectly introduces incomplete ('0') statuses during export if no status is actually set.
 				// This will misrepresent the case where someone intentionally marked a form as incomplete without setting any data,
@@ -1305,7 +1291,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
-	private function importBatch($project, $batchTextPrefix, $batchSize, $response, &$progress){
+	private function importBatch($project, $batchTextPrefix, $batchSize, $response, &$progress) {
 		// Split the import up into chunks as well to handle projects with many instances per record ID.
 		$chunks = array_chunk($response, $batchSize);
 		$batchCount = count($chunks);
@@ -1314,30 +1300,30 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		 * To make cron runs more predictably, we could only run one batch (or a couple of batches)
 		 * per cron run, then continue the job during the next cron process.
 		 */
-		for($i=0; $i<$batchCount; $i++){
+		for ($i = 0; $i < $batchCount; $i++) {
 			$chunk = $chunks[$i];
 
-			$batchNumber = $i+1;
+			$batchNumber = $i + 1;
 			$batchText = $batchTextPrefix . ", sub-batch $batchNumber of $batchCount";
 
 			$this->log("Importing $batchText (and overwriting matching local records)");
 			$results = \REDCap::saveData(
-					(int)$this->getProjectId(),
-					'json-array',
-					$chunk,
-					'overwrite',
-					null,
-					null,
-					null,
-					null,
-					null,
-					null,
-					null,
-					null,
-					null,
-					null,
-					null,
-					true // $removeLockedFields - We want to allow importing of locked forms/instances.
+				(int)$this->getProjectId(),
+				'json-array',
+				$chunk,
+				'overwrite',
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				true // $removeLockedFields - We want to allow importing of locked forms/instances.
 			);
 
 			$results = $this->adjustSaveResults($results);
@@ -1346,17 +1332,15 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			];
 
 			$stopEarly = false;
-			if(empty($results['errors'])){
+			if (empty($results['errors'])) {
 				$message = "completed ";
 
-				if(empty($results['warnings'])){
+				if (empty($results['warnings'])) {
 					$message .= 'successfully';
-				}
-				else{
+				} else {
 					$message .= 'with warnings';
 				}
-			}
-			else{
+			} else {
 				$message = "did NOT complete successfully";
 				$stopEarly = true;
 				$logParams['failure'] = true;
@@ -1365,7 +1349,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 			$this->log("Import $message for $batchText", $logParams);
 
-			if($stopEarly){
+			if ($stopEarly) {
 				$this->sendErrorEmail("REDCap was unable to import some record data.");
 				return true;
 			}
@@ -1374,11 +1358,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return false;
 	}
 
-	private function adjustSaveResults($results){
-		$results['warnings'] = array_filter($results['warnings'], function($warning){
+	private function adjustSaveResults($results) {
+		$results['warnings'] = array_filter($results['warnings'], function ($warning) {
 			global $lang;
 
-			if(strpos($warning[3], $lang['data_import_tool_197']) !== -1){
+			if (strpos($warning[3], $lang['data_import_tool_197']) !== -1) {
 				return false;
 			}
 
@@ -1388,7 +1372,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $results;
 	}
 
-	private function getProjectTitle($url, $apiKey){
+	private function getProjectTitle($url, $apiKey) {
 		$response = $this->apiRequest($url, $apiKey, [
 			'content' => 'project'
 		]);
@@ -1396,14 +1380,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $response['project_title'];
 	}
 
-	private function isLocalhost($domainAndPath){
+	private function isLocalhost($domainAndPath) {
 		$parts = explode('/', $domainAndPath);
 		$domain = $parts[0];
 		$ip = gethostbyname($domain);
 		return $ip === '127.0.0.1';
 	}
 
-	private function apiRequest($url, $apiKey, $data){
+	private function apiRequest($url, $apiKey, $data) {
 		$separator = '://';
 		$parts = explode($separator, $url);
 		$domainAndPath = array_pop($parts);
@@ -1412,12 +1396,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$isFileImport = ($data['action'] === 'import') && ($data['content'] === "file");
 		$isFileDelete = ($data['action'] === 'delete') && ($data['content'] === "file");
 		$isFileExport = ($data['action'] === 'export') && ($data['content'] === "file");
-		
-		if(
+
+		if (
 			empty($protocol) // Add https if missing
 			||
 			!$destinationIsLocalhost  // Force non-localhost URLs to use HTTPS to protect API keys.
-		){
+		) {
 			$protocol = 'https';
 		}
 
@@ -1438,8 +1422,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			$data
 		);
 
-		if($this->getCachedProjectSetting('log-requests')){
-			$this->logDetails('API Request', json_encode(array_merge($data,[
+		if ($this->getCachedProjectSetting('log-requests')) {
+			$this->logDetails('API Request', json_encode(array_merge($data, [
 				'url' => $url
 			]), JSON_PRETTY_PRINT));
 		}
@@ -1467,16 +1451,16 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 		$tries = 0;
 		$sleepTime = 60;
-		while($tries < 7){
+		while ($tries < 7) {
 			$output = curl_exec($ch);
 
-			if($this->getCachedProjectSetting('log-requests')){
+			if ($this->getCachedProjectSetting('log-requests')) {
 				$this->logDetails('API Response', $output);
 			}
 
 			$errorNumber = curl_errno($ch);
 
-			if($errorNumber === 56){
+			if ($errorNumber === 56) {
 				/**
 				 * This is a CURLE_RECV_ERROR like "SSL read" or "TCP connection reset by peer".
 				 * These are most often cause by temporary network issues.
@@ -1484,8 +1468,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				 */
 				sleep($sleepTime);
 				$sleepTime *= 2;
-			}
-			else{
+			} else {
 				/**
 				 * Either the request succeeded, or there was some other type of error.
 				 * Either way, don't retry
@@ -1500,29 +1483,26 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
 		$error = curl_error($ch);
 
-		curl_close($ch);
-
 		if ($isFileImport || $isFileDelete) {
 			$decodedOutput = json_decode($output, true);
-			if (($decodedOutput !== NULL) && !empty($decodedOutput['error'])) {
+			if (($decodedOutput !== null) && !empty($decodedOutput['error'])) {
 				return [
-					"success" => FALSE,
+					"success" => false,
 					"error" => $decodedOutput['error']
 				];
 			}
 			# to return information is passed back
-			return ["success" => TRUE];
-		} else if(!empty($error)){
+			return ["success" => true];
+		} elseif (!empty($error)) {
 			throw new Exception("CURL Error $errorNumber: $error");
-		}
-		else if(empty($output)){
+		} elseif (empty($output)) {
 			throw new Exception("An empty response was received.  Automatic batch sizes may be too large, causing the remote server to run out of memory when parsing the request.  Please try reducing the batch or sub-batch size, and report this error to datacore@vumc.org so automatic batch size detection can be improved in this case.");
 		}
 
 		$decodedOutput = json_decode($output, true);
 
-		if($httpCode !== 200){
-			if(
+		if ($httpCode !== 200) {
+			if (
 				$httpCode === 400
 				&&
 				$data['action'] === 'delete'
@@ -1530,14 +1510,13 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				is_array($decodedOutput)
 				&&
 				$decodedOutput['error'] === $GLOBALS['lang']['api_131'] . ' ' . $data['records'][0]
-			){
+			) {
 				/**
 				 * Do nothing.  This likely means the record was already manually deleted in the destination project,
 				 * and can safely be ignored.
 				 */
-			}
-			else{
-				if(is_array($decodedOutput)){
+			} else {
+				if (is_array($decodedOutput)) {
 					// If the output is valid JSON, include a more readable version of it in the exception.
 					$output = json_encode($decodedOutput, JSON_PRETTY_PRINT);
 				}
@@ -1546,7 +1525,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			}
 		}
 
-		if ($isFileExport && ($decodedOutput === NULL)) {
+		if ($isFileExport && ($decodedOutput === null)) {
 			# cURL returns file contents, not a JSON => place in array
 			$header = substr($output, 0, $headerSize);
 			$body = substr($output, $headerSize);
@@ -1554,8 +1533,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 				"filename" => self::getFilenameFromHeader($header),
 				"mimeType" => self::getMimeTypeFromHeader($header),
 				"contents" => $body
-			]; 
-		} else if($decodedOutput === NULL){
+			];
+		} elseif ($decodedOutput === null) {
 			throw new Exception("An unexpected response was returned: $output");
 		}
 
@@ -1565,11 +1544,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	private static function getFilenameFromHeader(string $header): string {
 		if (preg_match('/Content-Disposition:.*?filename="(.+?)"/i', $header, $matches)) {
 			return $matches[1];
-		} else if (preg_match('/Content-Disposition:.*?filename=([^; ]+)/i', $header, $matches)) {
+		} elseif (preg_match('/Content-Disposition:.*?filename=([^; ]+)/i', $header, $matches)) {
 			return rawurldecode($matches[1]);
-		} else if (preg_match('/Content-Type:\s*[^;\s]+;\sname="(.+?)"/i', $header, $matches)) {
+		} elseif (preg_match('/Content-Type:\s*[^;\s]+;\sname="(.+?)"/i', $header, $matches)) {
 			return $matches[1];
-		} else if (preg_match('/Content-Type:\s*[^;\s]+;\sname=([^; ]+)"/i', $header, $matches)) {
+		} elseif (preg_match('/Content-Type:\s*[^;\s]+;\sname=([^; ]+)"/i', $header, $matches)) {
 			return rawurldecode($matches[1]);
 		}
 		return "";
@@ -1582,14 +1561,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return "";
 	}
 
-	function validateSettings($settings){
-		$checkNumericSetting = function($settingKey, $settingName, $min, $max) use ($settings) {
+	public function validateSettings($settings) {
+		$checkNumericSetting = function ($settingKey, $settingName, $min, $max) use ($settings) {
 			$values = $settings[$settingKey];
-			if(!is_array($values)){
+			if (!is_array($values)) {
 				$values = [$values];
 			}
 
-			foreach($values as $value){
+			foreach ($values as $value) {
 				if (!empty($value) && (!ctype_digit($value) || $value < $min || $value > $max)) {
 					return "The $settingName specified must be between $min and $max.\n";
 				}
@@ -1597,38 +1576,36 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		};
 
 		$message = "";
-        $message .= $checkNumericSetting('daily-record-import-weekday', 'import day of week', 0, 6);
+		$message .= $checkNumericSetting('daily-record-import-weekday', 'import day of week', 0, 6);
 		$message .= $checkNumericSetting('daily-record-import-hour', 'import hour', 0, 23);
 		$message .= $checkNumericSetting('daily-record-import-minute', 'import minute', 0, 59);
-        $message .= $checkNumericSetting('export-weekday', 'export day of week', 0, 6);
-        $message .= $checkNumericSetting('export-hour', 'export hour', 0, 23);
+		$message .= $checkNumericSetting('export-weekday', 'export day of week', 0, 6);
+		$message .= $checkNumericSetting('export-hour', 'export hour', 0, 23);
 		$message .= $checkNumericSetting('export-minute', 'export minute', 0, 59);
 
 		return $message;
 	}
 
-	function isImportInProgress(){
-		return $this->getImportProgress() !== null;  
+	public function isImportInProgress() {
+		return $this->getImportProgress() !== null;
 	}
 
-	function renderSyncNowHtml(){
+	public function renderSyncNowHtml() {
 		$syncNow = $this->getProjectSetting('sync-now');
 		$currentSyncMessage = null;
-		if($syncNow){
+		if ($syncNow) {
 			$currentSyncMessage = "An import is scheduled to start in less than a minute.";
-		}
-		else if ($this->isImportInProgress()){
+		} elseif ($this->isImportInProgress()) {
 			$currentSyncMessage = "An import may be in progress.";
 		}
 
-		if($currentSyncMessage){
+		if ($currentSyncMessage) {
 			?>
 			<p>
 				<?=$currentSyncMessage?>  <a href="<?=$this->getUrl('cancel-sync.php');?>">Click here</a> to cancel it.
 			</p>
 			<?php
-		}
-		else{
+		} else {
 			$syncNowUrl = $this->getUrl('sync-now.php');
 			?>
 			<form action="<?=$syncNowUrl?>" method="post">
@@ -1642,7 +1619,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		}
 	}
 
-	function cancelSync(){
+	public function cancelSync() {
 		$this->log("Cancelling current import");
 		$this->removeProjectSetting('sync-now');
 		$this->removeProjectSetting(self::IMPORT_PROGRESS_SETTING_KEY);
@@ -1654,7 +1631,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		if (gettype($translations) != 'array') {
 			return;
 		}
-		
+
 		// translate [redcap_repeat_instrument] and [$form . '_complete'] fields where applicable
 		foreach ($data as &$instance) {
 			foreach ($translations as $i => $form_names) {
@@ -1666,7 +1643,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 					if ($instance['redcap_repeat_instrument'] == $local_form_name) {
 						$instance['redcap_repeat_instrument'] = $export_form_name;
 					}
-					
+
 					// [$form . '_complete'] components
 					if (isset($instance[$local_form_name . '_complete'])) {
 						$instance[$export_form_name . '_complete'] = $instance[$local_form_name . '_complete'];
@@ -1677,9 +1654,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 					if (in_array($instance['redcap_repeat_instrument'], $form_names, true)) {
 						$instance['redcap_repeat_instrument'] = $local_form_name;
 					}
-					
+
 					// [$form . '_complete'] components
-					foreach($form_names as $other_form_name) {
+					foreach ($form_names as $other_form_name) {
 						if (isset($instance[$other_form_name . '_complete'])) {
 							$instance[$local_form_name . '_complete'] = $instance[$other_form_name . '_complete'];
 							unset($instance[$other_form_name . '_complete']);
@@ -1689,7 +1666,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			}
 		}
 	}
-	
+
 	public function translateEventNames(&$data, &$project) {
 		$proj_prefix = $this->getProjectTypePrefix($project);
 		$translations = $project[$proj_prefix . 'event-translations'];
@@ -1721,20 +1698,20 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			}
 		}
 	}
-	
+
 	public function buildTranslations(&$project) {
 		// function will only build translations if json present in $project['form-translations'/'event-translations']
 		if ($this->translationsAreBuilt($project)) {
 			return;
 		}
 		$proj_key_prefix = $this->getProjectTypePrefix($project);
-		
+
 		foreach (['form', 'event'] as $type) {
 			$setting = &$project[$proj_key_prefix . "$type-translations"];
 			$setting = json_decode($setting, true);
 			if ($setting) {
-				foreach($setting as $i => $row) {
-					foreach($row as $j => $name) {
+				foreach ($setting as $i => $row) {
+					foreach ($row as $j => $name) {
 						$func_name = "format" . ucfirst($type) . "Name";
 						$setting[$i][$j] = $this->$func_name($name);
 					}
@@ -1752,7 +1729,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			'export-form-translations',
 			'export-event-translations'
 		];
-		foreach($translation_settings as $name) {
+		foreach ($translation_settings as $name) {
 			if (gettype($project[$name] ?? null) == 'array') {
 				return true;
 			}
@@ -1795,18 +1772,30 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$form_name = strip_tags(label_decode($form_label));
 		$form_name = preg_replace("/[^a-z0-9_]/", "", str_replace(" ", "_", strtolower(html_entity_decode($form_name, ENT_QUOTES))));
 		// Remove any double underscores, beginning numerals, and beginning/ending underscores
-		while (str_contains($form_name, "__")) 			$form_name = str_replace("__", "_", $form_name);
-		while (substr($form_name, 0, 1) == "_") 		$form_name = substr($form_name, 1);
-		while (substr($form_name, -1) == "_") 			$form_name = substr($form_name, 0, -1);
-		while (is_numeric(substr($form_name, 0, 1))) 	$form_name = substr($form_name, 1);
-		while (substr($form_name, 0, 1) == "_") 		$form_name = substr($form_name, 1);
+		while (str_contains($form_name, "__")) {
+			$form_name = str_replace("__", "_", $form_name);
+		}
+		while (substr($form_name, 0, 1) == "_") {
+			$form_name = substr($form_name, 1);
+		}
+		while (substr($form_name, -1) == "_") {
+			$form_name = substr($form_name, 0, -1);
+		}
+		while (is_numeric(substr($form_name, 0, 1))) {
+			$form_name = substr($form_name, 1);
+		}
+		while (substr($form_name, 0, 1) == "_") {
+			$form_name = substr($form_name, 1);
+		}
 		// Cannot begin with numeral and cannot be blank
 		if (is_numeric(substr($form_name, 0, 1)) || $form_name == "") {
 			$form_name = substr(preg_replace("/[0-9]/", "", md5($form_name)), 0, 4) . $form_name;
 		}
 		// Make sure it's less than 50 characters long
 		$form_name = substr($form_name, 0, 50);
-		while (substr($form_name, -1) == "_") $form_name = substr($form_name, 0, -1);
+		while (substr($form_name, -1) == "_") {
+			$form_name = substr($form_name, 0, -1);
+		}
 		return $form_name;
 	}
 
@@ -1817,12 +1806,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 			// return error string
 			return $validation;
 		}
-		
+
 		// read csv lines into translation matrix from file
 		$uploaded_filepath = $_FILES['attach-file-1']['tmp_name'];
 		$translation_matrix = [];
 		if ($uploaded_csv = fopen($uploaded_filepath, 'r')) {
-			while ($csv = fgetcsv($uploaded_csv)) {
+			while ($csv = fgetcsv($uploaded_csv, null, ',', '"', '\\')) {
 				if (!$csv_field_count) {
 					$csv_field_count = count($csv);
 				} else {
@@ -1835,13 +1824,14 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		} else {
 			return "Couldn't open the uploaded file.";
 		}
-		
+
 		if (empty($translation_matrix) or $csv_field_count < 2) {
-			"Couldn't parse uploaded CSV file into a valid translation matrix.";
+			return "Couldn't parse uploaded CSV file into a valid translation matrix.";
 		}
-		
+
 		// save translations to appropriate setting key/index
 		$this->saveTranslations($translation_matrix, $validation['target_server_type'], $validation['target_server_index'], $validation['target_project_index']);
+		return "";
 	}
 
 	public function importTranslationsTable() {
@@ -1850,23 +1840,24 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		if (gettype($validation) == 'string') {
 			return $validation;
 		}
-		
+
 		// escaping here causes issues with detecting newlines in the preg_split call below
 		// $translations = db_escape($_POST['translations']);
 		$translations = $_POST['translations'];
-		
+
 		$translation_matrix = [];
-		foreach(preg_split("/((\r?\n)|(\r\n?))/", $translations) as $line){
-			$translation_matrix[] = str_getcsv(db_escape($line));
-			foreach($translation_matrix as &$arr) {
+		foreach (preg_split("/((\r?\n)|(\r\n?))/", $translations) as $line) {
+			$translation_matrix[] = str_getcsv($this->framework->escape($line), ",", '"', "\\");
+			foreach ($translation_matrix as &$arr) {
 				foreach ($arr as $i => $name) {
 					$arr[$i] = strip_tags(label_decode(trim($name)));
 				}
 			}
 		}
-		
+
 		// save translations to appropriate setting key/index
-		$this->saveTranslations($translation_matrix, $validation['target_server_type'],$validation['target_server_index'], $validation['target_project_index']);
+		$this->saveTranslations($translation_matrix, $validation['target_server_type'], $validation['target_server_index'], $validation['target_project_index']);
+		return "";
 	}
 
 	private function validateImport() {
@@ -1874,24 +1865,24 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$project_api_key = $this->sanitizeAPIToken($_POST['project-api-key']);
 		$server_url = $_POST['server-url'];
 		$server_type = htmlentities($_POST['server-type'], ENT_QUOTES);
-		
+
 		// validate server_type
 		if ($server_type != 'import' and $server_type != 'export') {
 			return "Server type '$server_type' not recognized.";
 		}
-		
+
 		if (!isset($_POST['table_saved'])) {
 			// check for file error / 0 size
 			if ($_FILES['attach-file-1']['error'] != '0' or $_FILES['attach-file-1']['size'] == '0') {
 				return "There was an issue uploading the file to the server.";
 			}
 		}
-		
+
 		// find the target server
 		$server_settings_key = $server_type == 'import' ? 'servers' : 'export-servers';
 		$servers = $this->getSubSettings($server_settings_key);
 		$server_setting_key_prefix = $server_type == 'export' ? 'export-' : '';
-		
+
 		foreach ($servers as $server_index => $server) {
 			if ($server[$server_setting_key_prefix . 'redcap-url'] == $server_url) {
 				$target_server = $server;
@@ -1902,9 +1893,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		if (empty($target_server)) {
 			return "Couldn't find server in settings with URL: '" . htmlentities($server_url, ENT_QUOTES) . "'.";
 		}
-		
+
 		// find target project in target server
-		foreach($target_server[$server_setting_key_prefix . 'projects'] as $project_index => $project) {
+		foreach ($target_server[$server_setting_key_prefix . 'projects'] as $project_index => $project) {
 			if ($project[$server_setting_key_prefix . 'api-key'] == $project_api_key) {
 				$target_project_index = $project_index;
 				break;
@@ -1913,15 +1904,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		if (!isset($target_project_index)) {
 			return "Couldn't find project in server settings with API key: '$project_api_key'.";
 		}
-		
-		return [
-			'target_server' => $target_server,
-			'target_server_type' => $server_type,
-			'target_server_index' => $target_server_index,
-			'target_project_index' => $target_project_index
-		];
+
+		return null;
 	}
-	
+
 	private function saveTranslations($translation_matrix, $target_server_type, $target_server_index, $target_project_index) {
 		// save translations to appropriate setting key/index
 		$serial_translations = json_encode($translation_matrix);
@@ -1938,25 +1924,25 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 
 	public function getRemoteProjectTitle($remote_api_endpoint, $api_key) {
 		$api_url = preg_replace("~redcap/.+~", "redcap/api/", $remote_api_endpoint);
-		
-		$data = array(
+
+		$data = [
 			'token' => $api_key,
 			'content' => 'project',
 			'format' => 'json',
 			'returnFormat' => 'json'
-		);
+		];
 
 		$response = $this->apiRequest($api_url, $api_key, $data);
 
 		return $response['project_title'];
 	}
 
-	function cacheProjectSetting($key, $value){
+	public function cacheProjectSetting($key, $value) {
 		$this->cachedSettings[$key] = $value;
 	}
 
-	function getCachedProjectSetting($key){
-		if(!isset($this->cachedSettings[$key])){
+	public function getCachedProjectSetting($key) {
+		if (!isset($this->cachedSettings[$key])) {
 			$this->cacheProjectSetting($key, $this->getProjectSetting($key));
 		}
 
@@ -1964,12 +1950,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 	}
 
 	// This should likely be replaced by functionality in the module framework at some point.
-	function requireDateParameter($paramName, $dateFormat, $array = null){
-		if($array === null){
-			if(isset($_GET[$paramName])){
-				$array = $_GET;		
-			}
-			else{
+	public function requireDateParameter($paramName, $dateFormat, $array = null) {
+		if ($array === null) {
+			if (isset($_GET[$paramName])) {
+				$array = $_GET;
+			} else {
 				$array = $_POST;
 			}
 		}
@@ -1980,7 +1965,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		$value = (string) $value;
 
 		$newValue = date($dateFormat, strtotime($value));
-		if(empty($value) || $newValue !== $value){
+		if (empty($value) || $newValue !== $value) {
 			throw new Exception('Invalid date value supplied!');
 		}
 
@@ -1988,7 +1973,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule{
 		return $newValue;
 	}
 
-	function includeCss($path) {
+	public function includeCss($path) {
 		echo '<link rel="stylesheet" href="' . $this->getUrl($path) . '">';
 	}
 }
