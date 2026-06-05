@@ -25,6 +25,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 
 	public const DATA_VALUES_MAX_LENGTH = (2 ^ 16) - 1;
 	public const MAX_LOG_QUERY_PERIOD = 7;
+	public const RECORD_LOG_PREFIX = "last-record-log-";
 
 	private $settingPrefix;
 	private $cachedSettings;
@@ -245,7 +246,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 
 		if ($filterLogic != "") {
 			foreach ($recordIds as $recordId) {
-				$lastRecordLogId = $this->getProjectSetting("last-record-log-$recordId", $this->getProjectId());
+				$lastRecordLogId = $this->getProjectSetting(self::RECORD_LOG_PREFIX.$recordId, $this->getProjectId());
 				if ($lastRecordLogId != "") {
 					$lastRecordLogId = 1;
 				}
@@ -375,6 +376,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 				 * especially when the server is under heavy load.
 				 */
 				$this->setProjectSetting('last-exported-log-id', $latestLogId);
+				if ($filterLogic != "") {
+					$this->updateRecordLogs($allRecordsIds, $latestLogId);
+				}
 				return;
 			}
 		} else {
@@ -497,6 +501,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			}
 
 			$this->setProjectSetting('last-exported-log-id', $lastLogId);
+			if ($filterLogic != "") {
+				$this->updateRecordLogs($recordIds, $lastLogId);
+			}
 			$this->log("Finished exporting {$type}s for $batchText");
 		}
 	}
@@ -2054,11 +2061,15 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 		return $result;
 	}
 
-	public function redcap_module_save_configuration($project_id) {
-
-	}
-
 	public function validateFilterLogic(string $logic) {
 		return \LogicTester::isValid($logic);
+	}
+
+	public function updateRecordLogs(array $recordIds, int $logId) {
+		if (!empty($recordIds)) {
+			foreach ($recordIds as $recordId) {
+				$this->setProjectSetting(self::RECORD_LOG_PREFIX.$recordId, $logId, $this->getProjectId());
+			}
+		}
 	}
 }
