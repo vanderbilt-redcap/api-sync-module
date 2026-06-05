@@ -208,7 +208,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 		return $this->allFieldNames[$pid];
 	}
 
-	private function addBatchesSinceLastExport($specificFieldsBatchBuilder, $allFieldsBatchBuilder, $recordIds) {
+	private function addBatchesSinceLastExport($specificFieldsBatchBuilder, $allFieldsBatchBuilder, $recordIds, $filterLogic = "") {
 		$recordIds = array_flip($recordIds);
 
 		$lastExportedLogId = $this->getLastExportedLogId();
@@ -240,6 +240,45 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			}
 
 			$batchBuilder->addEvent($row['log_event_id'], $recordId, $row['event'], $fields);
+		}
+		$result->free();
+
+		if ($filterLogic != "") {
+			foreach ($recordIds as $recordId) {
+				$lastRecordLogId = $this->getProjectSetting("last-record-log-$recordId", $this->getProjectId());
+				if ($lastRecordLogId != "") {
+					$lastRecordLogId = 1;
+				}
+				$filterResult = $this->query(
+					"
+                    select log_event_id, event, data_values
+                    from " . $this->getLogTable() . "
+                    where
+                        event in ('INSERT', 'UPDATE', 'DELETE')
+                        and object_type = 'redcap_data'
+                        and project_id = ?
+                        and log_event_id <= ?
+                        and log_event_id >= ?
+                        and pk = ?
+                    order by log_event_id asc",
+					[
+						$this->getProjectId(),
+						$lastExportedLogId,
+						$lastRecordLogId,
+						$recordId
+					]
+				);
+				while ($row = $filterResult->fetch_assoc()) {
+					$fields = $this->getChangedFieldNamesForLogRow($row['data_values'], $this->getAllFieldNames());
+					if (empty($fields)) {
+						$batchBuilder = $allFieldsBatchBuilder;
+					} else {
+						$batchBuilder = $specificFieldsBatchBuilder;
+					}
+
+					$batchBuilder->addEvent($row['log_event_id'], $recordId, $row['event'], $fields);
+				}
+			}
 		}
 	}
 
@@ -289,16 +328,16 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			$allFieldsBatchBuilder = new BatchBuilder($this->getExportBatchSize());
 
 			$latestLogId = $this->getLatestLogId();
-			$filterLogic = implode(
+			$filterLogic = $this->framework->escape(implode(
 				' ' . $this->getCachedProjectSetting('export-filter-logic-combination-operator') . ' ',
 				array_filter([
 					$this->getCachedProjectSetting('export-filter-logic-all'),
 					$this->getCachedProjectSetting('export-filter-logic')
 				])
-			);
-			//TODO Prevent export from running instead of just dropping filter logic?????
+			));
+
 			if (!$this->validateFilterLogic($filterLogic)) {
-				$filterLogic = "";
+				throw new Exception("Provided filter logic '$filterLogic' is not valid.");
 			}
 			/**
 			 * If ever try to add filter logic here again in the future,
@@ -323,8 +362,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 					$allFieldsBatchBuilder->addEvent($latestLogId, $recordId, 'UPDATE', []);
 				}
 			} else {
-				// TODO Add a builder that, if filter logic isn't empty, adds all events since last event ID specific to the record
-				$this->addBatchesSinceLastExport($specificFieldsBatchBuilder, $allFieldsBatchBuilder, $allRecordsIds);
+				$this->addBatchesSinceLastExport($specificFieldsBatchBuilder, $allFieldsBatchBuilder, $allRecordsIds, $filterLogic);
 			}
 
 			$batches = $this->mergeBatches($specificFieldsBatchBuilder, $allFieldsBatchBuilder);
