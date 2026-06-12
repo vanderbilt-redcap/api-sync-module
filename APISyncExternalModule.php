@@ -857,7 +857,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 
 		if ($progress->getBatchIndex() === 0) {
 			$this->log("
-				<div>Exporting records from the remote project titled:</div>
+				<div>Importing records from the remote project titled:</div>
 				<div class='remote-project-title'>" . $this->getProjectTitle($url, $apiKey) . "</div>
 			");
 
@@ -909,7 +909,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 		$batch = $batches[$batchIndex];
 		$batchText = "batch " . ($batchIndex + 1) . " of " . count($batches);
 
-		$this->log("Exporting $batchText");
+		$this->log("Importing $batchText");
 		$response = $this->apiRequest($url, $apiKey, [
 			'content' => 'record',
 			'format' => 'json',
