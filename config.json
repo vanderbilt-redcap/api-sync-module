@@ -94,6 +94,11 @@
       "type": "textarea"
     },
     {
+      "key": "export-background-process",
+      "name": "Perform exports as a background process on remote server. It may take longer, but be more reliable for large data sets.",
+      "type": "checkbox"
+    },
+    {
       "key": "export-servers",
       "name": "Export Destinations",
       "type": "sub_settings",

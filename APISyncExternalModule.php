@@ -227,7 +227,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 
 		while ($row = $result->fetch_assoc()) {
 			$recordId = $row['pk'];
-			if (!in_array($recordId,$recordIds)) {
+			if (!in_array($recordId, $recordIds)) {
 				continue;
 			}
 
@@ -564,6 +564,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 				if ($type === self::UPDATE) {
 					$prepped_data = $this->prepareData($project, $data, $recordIdFieldName);
 					$args['overwriteBehavior'] = 'overwrite';
+					$args['backgroundProcess'] = $this->getCachedProjectSetting("export-background-process");
 					$args['data'] = json_encode($prepped_data, JSON_PRETTY_PRINT);
 				} elseif ($type === self::DELETE) {
 					$recordIdPrefix = $project['export-record-id-prefix'];
@@ -1098,6 +1099,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 							"dataFormat" => "json-array",
 							"data" => [$uploadRow],
 							"overwriteBehavior" => "overwrite",
+							"backgroundProcess" => $this->getCachedProjectSetting("export-background-process"),
 							"skipFileUploadFields" => false      // must be set - REDCap's default is TRUE
 						];
 						error_log("Uploading ".json_encode($params));
