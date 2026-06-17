@@ -5,7 +5,8 @@
 <div id="api-sync-module-wrapper">
 	<?=$module->initializeJavascriptModuleObject()?>
 	<script>
-		ExternalModules.Vanderbilt.APISyncExternalModule.showDetails = function(logId){
+        const api_sync_module = <?=$module->getJavascriptModuleObjectName()?>;
+		api_sync_module.showDetails = function(logId){
 			var width = window.innerWidth - 100;
 			var height = window.innerHeight - 200;
 			$.get(<?=json_encode($module->getUrl('get-log-details.php') . '&log-id=')?> + logId, function(details){
@@ -14,7 +15,7 @@
 			})
 		}
 
-		ExternalModules.Vanderbilt.APISyncExternalModule.showSyncCancellationDetails = function(){
+		api_sync_module.showSyncCancellationDetails = function(){
 			var div = $('#api-sync-module-cancellation-details').clone()
 			div.show()
 
@@ -23,12 +24,12 @@
 			// Replace tabs with spaces for easy copy pasting into the mysql command line interface
 			pre.html(pre.html().replace(/\t/g, '    '))
 
-			ExternalModules.Vanderbilt.APISyncExternalModule.trimPreIndentation(pre[0])
+			api_sync_module.trimPreIndentation(pre[0])
 
 			simpleDialog(div, 'Sync Cancellation', null, 1000)
 		}
 
-		ExternalModules.Vanderbilt.APISyncExternalModule.trimPreIndentation = function(pre){
+		api_sync_module.trimPreIndentation = function(pre){
 			var content = pre.innerHTML
 			var firstNonWhitespaceIndex = content.search(/\S/)
 			var leadingWhitespace = content.substr(0, firstNonWhitespaceIndex)
@@ -111,7 +112,7 @@
 
 	<table class="top-button-container">
         <tr><td><button class="api-sync-export-queued-button">Export Queued Records</button></td><td>Exports recently added/updated/deleted records now.</td></tr>
-        <tr><?php echo $module->renderExportNowHtml(); ?></tr>
+        <tr id="export-all-row"><?php echo $module->renderExportNowHtml(); ?></tr>
         <tr><td><button class="api-sync-clear-export-queue-button">Clear Export Queue</button></td><td>Unqueues any records currently queued for export.</td></tr>
         <tr><td><button class="api-sync-cancel-export-button">Cancel Export</button></td><td>Cancels the active export.</td></tr>
         <tr><td><button class="api-sync-delete-request-content-logs">Delete Request Content Logs</button></td><td>Deletes all logs created by the "Log request contents & responses" setting.</td></tr>
@@ -138,6 +139,10 @@
 			allowOutsideClick: false
 		})
 
+        const exportAllRow = document.getElementById('export-all-row');
+        const sanitizer1 = new Sanitizer({
+            elements: ["td", "button"],
+        });
 		$(function(){
 			async function ajaxRequest(args) {
                 args.caller.disabled = true;
@@ -187,7 +192,9 @@
 					url: <?=json_encode($module->getUrl('export-now.php'))?>,
 					loadingMessage: 'Marking queued records for export now...',
 					successMessage: 'Queued records have been marked for export now.'
-				})
+				}).then(function () {
+                    replaceExportHTML();
+                });
 			})
 
 			$('.api-sync-export-all-button').click(function(){
@@ -196,7 +203,9 @@
 					url: <?=json_encode($module->getUrl('export-all-records-now.php'))?>,
 					loadingMessage: 'Queuing all records for export...',
 					successMessage: 'All records have been queued for export.'
-				})
+				}).then(function () {
+                    replaceExportHTML();
+                });
 			})
 
 			$('.api-sync-clear-export-queue-button').click(function(){
@@ -206,7 +215,7 @@
 					loadingMessage: 'Clearing export queue...',
 					successMessage: 'The export queue has been cleared!  Only records saved from this moment forward will be included in the next export.'
 				}).then(function () {
-                    console.log(ExternalModules.Vanderbilt.APISyncExternalModule);
+                    replaceExportHTML();
                 });
 			})
 
@@ -216,7 +225,9 @@
 					url: <?=json_encode($module->getUrl('cancel-export.php'))?>,
 					loadingMessage: 'Cancelling the current export...',
 					successMessage: 'The current export has been cancelled and will stop after the current sub-batch finishes.'
-				})
+				}).then(function () {
+                    replaceExportHTML();
+                });
 			})
 
 			$('.api-sync-delete-request-content-logs').click(function(){
@@ -228,6 +239,12 @@
 					successMessageSuffix: ''
 				})
 			})
+
+            function replaceExportHTML() {
+                api_sync_module.ajax('exportNowHTML',{}).then(function(response) {
+                    exportAllRow.setHTMLUnsafe(response,{});
+                });
+            }
 		})
 
 		$(function(){
@@ -276,7 +293,7 @@
 							var logId = row.log_id
 							
 							if(row.hasDetails){
-								html += "<button onclick='ExternalModules.Vanderbilt.APISyncExternalModule.showDetails(" + logId + ")'>Show Details</button>"
+								html += "<button onclick='api_sync_module.showDetails(" + logId + ")'>Show Details</button>"
 							}
 
 							// Only allow retrying the last failed import.
