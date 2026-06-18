@@ -1905,7 +1905,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			return "Couldn't find project in server settings with API key: '$project_api_key'.";
 		}
 
-		return null;
+		return [
+			'target_server' => $target_server,
+			'target_server_type' => $server_type,
+			'target_server_index' => $target_server_index,
+			'target_project_index' => $target_project_index
+		];
 	}
 
 	private function saveTranslations($translation_matrix, $target_server_type, $target_server_index, $target_project_index) {
