@@ -327,7 +327,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			$allFieldsBatchBuilder = new BatchBuilder($this->getExportBatchSize());
 
 			$latestLogId = $this->getLatestLogId();
-			$filterLogic = $this->framework->escape($this->getCachedProjectSetting('export-filter-logic-all'));
+			$filterLogic = $this->framework->escape($this->getCachedProjectSetting('export-filter-logic-all')) ?? "";
 
 			if (!$this->validateFilterLogic($filterLogic)) {
 				throw new Exception("Provided filter logic '$filterLogic' is not valid.");
