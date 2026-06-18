@@ -2,7 +2,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/spin.js/2.3.2/spin.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gasparesganga-jquery-loading-overlay@2.1.6/dist/loadingoverlay.min.js" integrity="sha384-L2MNADX6uJTVkbDNELTUeRjzdfJToVbpmubYJ2C74pwn8FHtJeXa+3RYkDRX43zQ" crossorigin="anonymous"></script>
 
-<? $module->includeCss("css/pages.css"); ?>
+<?php $module->includeCss("css/pages.css"); ?>
 
 <div id="api-sync-module-wrapper">
 	<?=$module->initializeJavascriptModuleObject()?>

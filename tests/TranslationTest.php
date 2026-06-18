@@ -1,14 +1,16 @@
 <?php
+
 namespace Vanderbilt\APISyncExternalModule;
 
-class TranslationTest extends BaseTest{
-    function test_build_translations() {
+class TranslationTest extends BaseTest
+{
+	public function test_build_translations() {
 		$module = new APISyncExternalModule();
-		
-        $project1 = [];
+
+		$project1 = [];
 		$module->buildTranslations($project1);
 		$this->assertSame([], $project1);
-		
+
 		$project2 = [
 			'form-translations' => '[["Instrument A"," My First Instrument"," My First Instrument_2"],["Instrument B"," Instrument 2"," Instrument 2_2"]]',
 			'event-translations' => '[["E_1"," E1"," EA"],["E_2"," E2"," EB"],["E_3"," E3"," EC"]]'
@@ -25,10 +27,10 @@ class TranslationTest extends BaseTest{
 				['e_3', 'e3', 'ec']
 			]
 		]);
-    }
-	function test_import_translate_data() {
+	}
+	public function test_import_translate_data() {
 		$module = new APISyncExternalModule();
-		
+
 		$project = [
 			'form-translations' => [
 				['instrument_a', 'my_first_instrument', 'my_first_instrument_2'],
@@ -40,7 +42,7 @@ class TranslationTest extends BaseTest{
 				['e_3', 'e3', 'ec']
 			]
 		];
-        $data = [
+		$data = [
 			[
 				'my_rid_field' => 'src1_1',
 				'redcap_event_name' => 'e1_arm_1',
@@ -59,10 +61,10 @@ class TranslationTest extends BaseTest{
 				'instrument_2_complete' => ''
 			]
 		];
-		
+
 		$module->translateFormNames($data, $project);
 		$module->translateEventNames($data, $project);
-		
+
 		$this->assertSame([
 			[
 				'my_rid_field' => 'src1_1',
@@ -82,5 +84,5 @@ class TranslationTest extends BaseTest{
 				'instrument_b_complete' => ''
 			]
 		], $data);
-    }
+	}
 }
