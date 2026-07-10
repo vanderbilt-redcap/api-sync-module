@@ -177,6 +177,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 		);
 
 		$weekOldId = $result->fetch_assoc()['log_event_id'];
+		/**
+		 * We subtract one from $weekOldId because the return value from this function should be (or simulate)
+		 * the last ID that was previously synced. Subtracting one ensures that $weekOldId itself is processed.
+		 */
+		$weekOldId--;
 		$lastExportedId = $this->getProjectSetting('last-exported-log-id');
 
 		/**
