@@ -24,7 +24,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 	public const EXPORT_CANCELLED_MESSAGE = 'Export cancelled.';
 
 	public const DATA_VALUES_MAX_LENGTH = (2 ^ 16) - 1;
-	public const MAX_LOG_QUERY_PERIOD = 7;
+	/**
+	 * We semi-arbitrarily changed this from 7 to 8 days to make sure logs don't get
+	 * skipped on syncs that only run once a week (per the 'export-weekday' setting).
+	 */
+	public const MAX_LOG_QUERY_PERIOD = 8;
 
 	private $settingPrefix;
 	private $cachedSettings;
