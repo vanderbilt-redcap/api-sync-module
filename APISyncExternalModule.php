@@ -24,7 +24,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 	public const EXPORT_CANCELLED_MESSAGE = 'Export cancelled.';
 
 	public const DATA_VALUES_MAX_LENGTH = (2 ^ 16) - 1;
-	public const MAX_LOG_QUERY_PERIOD = 7;
+	/**
+	 * We semi-arbitrarily changed this from 7 to 8 days to make sure logs don't get
+	 * skipped on syncs that only run once a week (per the 'export-weekday' setting).
+	 */
+	public const MAX_LOG_QUERY_PERIOD = 8;
 
 	private $settingPrefix;
 	private $cachedSettings;
@@ -177,6 +181,11 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 		);
 
 		$weekOldId = $result->fetch_assoc()['log_event_id'];
+		/**
+		 * We subtract one from $weekOldId because the return value from this function should be (or simulate)
+		 * the last ID that was previously synced. Subtracting one ensures that $weekOldId itself is processed.
+		 */
+		$weekOldId--;
 		$lastExportedId = $this->getProjectSetting('last-exported-log-id');
 
 		/**
