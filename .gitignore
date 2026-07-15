@@ -2,6 +2,5 @@
 .phpunit.result.cache
 /ignore/
 /vendor/
-composer*
 /.vscode/launch.json
 /.php-cs-fixer.cache
