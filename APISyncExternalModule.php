@@ -90,6 +90,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			$firstProject['export-api-key'] ?? null,
 			$firstProject['export-project-name'] ?? null
 		])) {
+            // TODO Remove these settings, or just disable the interface buttons in the first place?
+			$this->removeProjectSetting('export-now');
+			$this->removeProjectSetting('export-all-records');
+			$this->removeProjectSetting('export-progress');
 			return;
 		}
 
@@ -667,9 +671,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 				$syncNow
 				||
 				$this->isTimeToRun(
-					$server['daily-record-import-minute'],
-					$server['daily-record-import-hour'],
-					$server['daily-record-import-weekday'],
+					($server['daily-record-import-minute'] ?? ""),
+					($server['daily-record-import-hour'] ?? ""),
+					($server['daily-record-import-weekday'] ?? ""),
 					$server
 				)
 			) {
@@ -1521,8 +1525,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 		$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 		$headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
 		$error = curl_error($ch);
-
-		curl_close($ch);
 
 		if ($isFileImport || $isFileDelete) {
 			$decodedOutput = json_decode($output, true);
