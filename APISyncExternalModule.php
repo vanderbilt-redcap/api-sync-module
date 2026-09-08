@@ -34,6 +34,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 	private $settingPrefix;
 	private $cachedSettings;
 	private $allFieldNames = [];
+	private $adminEmailMessage = "";
+	private $deepLogging = false;
 
 	public function cron($cronInfo) {
 		/**
@@ -45,6 +47,8 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 		$originalPid = $_GET['pid'] ?? null;
 
 		$cronName = $cronInfo['cron_name'];
+
+		$this->deepLogging = $this->getCachedProjectSetting('deep-error-reporting');
 
 		foreach ($this->framework->getProjectsWithModuleEnabled() as $localProjectId) {
 			// This automatically associates all log statements with this project.
@@ -94,7 +98,6 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			$firstProject['export-api-key'] ?? null,
 			$firstProject['export-project-name'] ?? null
 		])) {
-            // TODO Remove these settings, or just disable the interface buttons in the first place?
 			$this->removeProjectSetting('export-now');
 			$this->removeProjectSetting('export-all-records');
 			$this->removeProjectSetting('export-progress');
@@ -1115,9 +1118,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 							"backgroundProcess" => $this->getCachedProjectSetting("export-background-process"),
 							"skipFileUploadFields" => false      // must be set - REDCap's default is TRUE
 						];
-						error_log("Uploading ".json_encode($params));
+						$this->log("Uploading ".json_encode($params));
 						$feedback = \REDCap::saveData($params);
-						error_log("Got feedback: ".json_encode($feedback));
+						$this->log("Got feedback: ".json_encode($feedback));
 						if (!empty($feedback['errors'] ?? [])) {
 							throw new \Exception("Could not delete $fileFieldName in Record $recordId! ".implode("<br/>\n", $feedback['errors']));
 						} else {
@@ -1359,6 +1362,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			$batchText = $batchTextPrefix . ", sub-batch $batchNumber of $batchCount";
 
 			$this->log("Importing $batchText (and overwriting matching local records)");
+
 			$results = \REDCap::saveData(
 				(int)$this->getProjectId(),
 				'json-array',
@@ -1379,6 +1383,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			);
 
 			$results = $this->adjustSaveResults($results);
+			if ($this->deepLogging) {
+				$this->adminEmailMessage .= "Attempting to save chunk: ".json_encode($chunk, JSON_PRETTY_PRINT)."\n
+                The results were: ".json_encode($results, JSON_PRETTY_PRINT)."\n";
+			}
 			$logParams = [
 				'details' => json_encode($results, JSON_PRETTY_PRINT)
 			];
