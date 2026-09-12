@@ -48,11 +48,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 
 		$cronName = $cronInfo['cron_name'];
 
-		$this->deepLogging = $this->getCachedProjectSetting('deep-error-reporting');
-
 		foreach ($this->framework->getProjectsWithModuleEnabled() as $localProjectId) {
 			// This automatically associates all log statements with this project.
 			$_GET['pid'] = $localProjectId;
+			$this->deepLogging = $this->getCachedProjectSetting('deep-error-reporting');
 
 			$this->settingPrefix = substr($cronName, 0, -1); // remove the 's'
 
@@ -2025,7 +2024,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 
 	public function getCachedProjectSetting($key) {
 		if (!isset($this->cachedSettings[$key])) {
-			$this->cacheProjectSetting($key, $this->getProjectSetting($key));
+			$this->cacheProjectSetting($key, $this->getProjectSetting($key, $this->getProjectId()));
 		}
 
 		return $this->cachedSettings[$key];
