@@ -864,6 +864,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 				// The following calculation caused about 500MB of maximum memory usage when importing the TIN Database (pid 61715) on the Vanderbilt REDCap test server.
 				$numberOfDataPoints = count($fieldNames) * count($recordIds);
 				$numberOfBatches = $numberOfDataPoints / 100000;
+				// Prevent division by zero
+				if (empty($numberOfBatches)) {
+					$numberOfBatches = 1;
+				}
 				$batchSize = round(count($recordIds) / $numberOfBatches);
 			}
 
