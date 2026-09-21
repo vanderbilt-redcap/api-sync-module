@@ -839,7 +839,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 
 			$recordIdFieldName = $fieldNames[0]['export_field_name'];
 
-			$records = $this->apiRequest($url, $apiKey, [
+			$recordRequestParams = [
 				'content' => 'record',
 				'fields' => [$recordIdFieldName],
 				'filterLogic' => implode(
@@ -849,14 +849,25 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 						$project['import-filter-logic'],
 					])
 				)
-			]);
+			];
+			$records = $this->apiRequest($url, $apiKey, $recordRequestParams);
 
+			if (empty($records)) {
+				// If the API result is that no records exist, log it and move on.
+				$this->logDetails("No records to import from project: <div class='remote-project-title'>".$this->getProjectTitle($url, $apiKey)."</div>", json_encode(array_merge($recordRequestParams, [
+					'url' => $url
+				]), JSON_PRETTY_PRINT));
+				$progress->finishCurrentProject();
+				return;
+			}
 			$recordIds = [];
 			foreach ($records as $record) {
 				$recordIds[] = $record[$recordIdFieldName];
 			}
 
 			$batchSize = @$project['import-batch-size'];
+			//$batchSize = 0;
+			//$recordIds = [];
 			if (empty($batchSize)) {
 				// This calculation should NOT be changed without testing older PHP versions.
 				// PHP 7 is much more memory efficient on REDCap imports than PHP 5.
@@ -864,11 +875,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 				// The following calculation caused about 500MB of maximum memory usage when importing the TIN Database (pid 61715) on the Vanderbilt REDCap test server.
 				$numberOfDataPoints = count($fieldNames) * count($recordIds);
 				$numberOfBatches = $numberOfDataPoints / 100000;
-				// Prevent division by zero
-				if (empty($numberOfBatches)) {
-					$numberOfBatches = 1;
-				}
-				$batchSize = round(count($recordIds) / $numberOfBatches);
+				$batchSize = ($numberOfBatches > 0 ? round(count($recordIds) / $numberOfBatches) : 1);
 			}
 
 			$project['record-ids'] = $recordIds;
