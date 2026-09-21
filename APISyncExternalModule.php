@@ -836,6 +836,12 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			$fieldNames = $this->apiRequest($url, $apiKey, [
 				'content' => 'exportFieldNames'
 			]);
+			if (empty($fieldNames)) {
+				// If the API result is that fields exist, log it and move on.
+				$this->logDetails("No fields to import from project: <div class='remote-project-title'>".$this->getProjectTitle($url, $apiKey)."</div>", json_encode(['url' => $url], JSON_PRETTY_PRINT));
+				$progress->finishCurrentProject();
+				return;
+			}
 
 			$recordIdFieldName = $fieldNames[0]['export_field_name'];
 
@@ -866,8 +872,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			}
 
 			$batchSize = @$project['import-batch-size'];
-			//$batchSize = 0;
-			//$recordIds = [];
+
 			if (empty($batchSize)) {
 				// This calculation should NOT be changed without testing older PHP versions.
 				// PHP 7 is much more memory efficient on REDCap imports than PHP 5.
@@ -875,7 +880,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 				// The following calculation caused about 500MB of maximum memory usage when importing the TIN Database (pid 61715) on the Vanderbilt REDCap test server.
 				$numberOfDataPoints = count($fieldNames) * count($recordIds);
 				$numberOfBatches = $numberOfDataPoints / 100000;
-				$batchSize = ($numberOfBatches > 0 ? round(count($recordIds) / $numberOfBatches) : 1);
+				$batchSize = round(count($recordIds) / $numberOfBatches);
 			}
 
 			$project['record-ids'] = $recordIds;
