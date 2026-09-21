@@ -837,7 +837,7 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 				'content' => 'exportFieldNames'
 			]);
 			if (empty($fieldNames)) {
-				// If the API result is that fields exist, log it and move on.
+				// If the API result is that no fields exist, log it and move on.
 				$this->logDetails("No fields to import from project: <div class='remote-project-title'>".$this->getProjectTitle($url, $apiKey)."</div>", json_encode(['url' => $url], JSON_PRETTY_PRINT));
 				$progress->finishCurrentProject();
 				return;
