@@ -880,10 +880,16 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			$fieldNames = $this->apiRequest($url, $apiKey, [
 				'content' => 'exportFieldNames'
 			]);
+			if (empty($fieldNames)) {
+				// If the API result is that no fields exist, log it and move on.
+				$this->logDetails("No fields to import from project: <div class='remote-project-title'>".$this->getProjectTitle($url, $apiKey)."</div>", json_encode(['url' => $url], JSON_PRETTY_PRINT));
+				$progress->finishCurrentProject();
+				return;
+			}
 
 			$recordIdFieldName = $fieldNames[0]['export_field_name'];
 
-			$records = $this->apiRequest($url, $apiKey, [
+			$recordRequestParams = [
 				'content' => 'record',
 				'fields' => [$recordIdFieldName],
 				'filterLogic' => implode(
@@ -893,14 +899,24 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 						$project['import-filter-logic'],
 					])
 				)
-			]);
+			];
+			$records = $this->apiRequest($url, $apiKey, $recordRequestParams);
 
+			if (empty($records)) {
+				// If the API result is that no records exist, log it and move on.
+				$this->logDetails("No records to import from project: <div class='remote-project-title'>".$this->getProjectTitle($url, $apiKey)."</div>", json_encode(array_merge($recordRequestParams, [
+					'url' => $url
+				]), JSON_PRETTY_PRINT));
+				$progress->finishCurrentProject();
+				return;
+			}
 			$recordIds = [];
 			foreach ($records as $record) {
 				$recordIds[] = $record[$recordIdFieldName];
 			}
 
 			$batchSize = @$project['import-batch-size'];
+
 			if (empty($batchSize)) {
 				// This calculation should NOT be changed without testing older PHP versions.
 				// PHP 7 is much more memory efficient on REDCap imports than PHP 5.
