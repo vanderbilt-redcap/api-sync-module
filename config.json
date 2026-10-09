@@ -28,7 +28,7 @@
     {
       "key": "deep-error-reporting",
       "name": "List of Email Addresses to Receive Detailed Process Logging",
-      "type": "checkbox"
+      "type": "text"
     },
     {
       "key": "export-descriptive",
