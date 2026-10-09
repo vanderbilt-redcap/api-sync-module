@@ -1376,6 +1376,10 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			$batchNumber = $i + 1;
 			$batchText = $batchTextPrefix . ", sub-batch $batchNumber of $batchCount";
 
+            if ($this->getCachedProjectSetting('log-requests')) {
+                $this->logDetails('Attempting to save data on import', json_encode($chunk, JSON_PRETTY_PRINT));
+            }
+
 			$this->log("Importing $batchText (and overwriting matching local records)");
 
 			$results = \REDCap::saveData(
