@@ -593,6 +593,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 					$args['records'] = $data;
 				}
 
+				if ($this->getCachedProjectSetting('log-requests')) {
+					$this->logDetails('Exporting the following arguments with the API', json_encode($args, JSON_PRETTY_PRINT));
+				}
 				$results = $this->apiRequest($url, $apiKey, $args);
 				if (($type === self::UPDATE) && ($project['export-files'] ?? false)) {
 					# import is from the perspective of the remote server
@@ -1376,9 +1379,9 @@ class APISyncExternalModule extends \ExternalModules\AbstractExternalModule
 			$batchNumber = $i + 1;
 			$batchText = $batchTextPrefix . ", sub-batch $batchNumber of $batchCount";
 
-            if ($this->getCachedProjectSetting('log-requests')) {
-                $this->logDetails('Attempting to save data on import', json_encode($chunk, JSON_PRETTY_PRINT));
-            }
+			if ($this->getCachedProjectSetting('log-requests')) {
+				$this->logDetails('Attempting to save data on import', json_encode($chunk, JSON_PRETTY_PRINT));
+			}
 
 			$this->log("Importing $batchText (and overwriting matching local records)");
 
